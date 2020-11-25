@@ -14,6 +14,7 @@
 #include "vast/chunk.hpp"
 
 #include "vast/detail/narrow.hpp"
+#include "vast/detail/usdt.hpp"
 #include "vast/error.hpp"
 #include "vast/io/read.hpp"
 #include "vast/io/save.hpp"
@@ -37,6 +38,9 @@ namespace vast {
 // -- constructors, destructors, and assignment operators ----------------------
 
 chunk::~chunk() noexcept {
+  auto data = view_.data();
+  auto sz = view_.size();
+  VAST_SDT(chunk_delete, data, sz);
   if (deleter_)
     std::invoke(deleter_);
 }
@@ -49,6 +53,9 @@ chunk::make(const void* data, size_type size, deleter_type&& deleter) noexcept {
 }
 
 chunk_ptr chunk::make(view_type view, deleter_type&& deleter) noexcept {
+  auto data = view.data();
+  auto sz = view.size();
+  VAST_SDT(chunk_make, data, sz);
   return chunk_ptr{new chunk{view, std::move(deleter)}, false};
 }
 
