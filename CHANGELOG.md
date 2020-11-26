@@ -12,6 +12,13 @@ Every entry has a category for which we use the following visual abbreviations:
 
 ## Unreleased
 
+- 🧬 The query language now supports models. Models combine a list of concepts
+  into a semantic unit that can be fulfiled by an event. If the type of an
+  event contains a field for every concept in a model. Turn to
+  https://docs.tenzir.com/vast/data-model/taxonomies/#models for more
+  information.
+  [#1185](https://github.com/tenzir/vast/pull/1185)
+
 - 🎁 The new `dump` command prints configuration and schema-related information.
   The initial implementation allows for printing all registered concepts as JSON
   via `vast dump concepts`. The new flag `vast.dump.yaml` or `vast dump --yaml`
