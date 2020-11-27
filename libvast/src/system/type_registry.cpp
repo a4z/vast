@@ -185,6 +185,7 @@ type_registry(type_registry_actor self, const path& dir) {
       VAST_DEBUG(self, "loads taxonomies");
       auto dirs = get_schema_dirs(self->system().config());
       concepts_map concepts;
+      models_map models;
       for (const auto& dir : dirs) {
         if (!exists(dir))
           continue;
@@ -192,7 +193,7 @@ type_registry(type_registry_actor self, const path& dir) {
         if (!yamls)
           return yamls.error();
         for (auto& [file, yaml] : *yamls) {
-          VAST_DEBUG(self, "extracts concepts from", file);
+          VAST_DEBUG(self, "extracts taxonomies from", file);
           if (auto err = extract_concepts(yaml, concepts))
             return caf::make_error(ec::parse_error,
                                    "failed to extract concepts from file", file,
@@ -203,9 +204,19 @@ type_registry(type_registry_actor self, const path& dir) {
             for (auto& field : definition.fields)
               VAST_TRACE(self, "uses concept mapping", name, "->", field);
           }
+          if (auto err = extract_models(yaml, models))
+            return caf::make_error(ec::parse_error,
+                                   "failed to extract models from file", file,
+                                   err.context());
+          for (auto& [name, definition] : models) {
+            VAST_DEBUG(self, "extracted model", name, "with",
+                       definition.definition.size(), "fields");
+            VAST_TRACE(self, "uses model mapping", name, "->",
+                definition.definition);
+          }
         }
       }
-      self->state.taxonomies = taxonomies{std::move(concepts), models_map{}};
+      self->state.taxonomies = taxonomies{std::move(concepts), std::move(models)};
       return atom::ok_v;
     },
     [=](atom::resolve, const expression& e) {
