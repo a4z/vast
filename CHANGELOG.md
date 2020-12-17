@@ -12,6 +12,40 @@ Every entry has a category for which we use the following visual abbreviations:
 
 ## Unreleased
 
+- 🎁 The new short options `-v`, `-vv`, `-vvv`, `-q`, `-qq`, and `-qqq` map onto
+  the existing verbosity levels.
+  [#1244](https://github.com/tenzir/vast/pull&1244)
+
+## [2020.12.16]
+
+- 🎁 Low-selectivity queries of string (in)equality queries now run up to 30x
+  faster, thanks to more intelligent selection of relevant index partitions.
+  [#1214](https://github.com/tenzir/vast/pull/1214)
+
+- ⚡️ The build configuration of VAST received a major overhaul. Inclusion of
+  libvast in other procects via `add_subdirectory(path/to/vast)` is now easily
+  possible. The names of all build options were aligned, and the new build
+  summary shows all available options.
+  [#1175](https://github.com/tenzir/vast/pull/1175)
+
+- 🐞 Concepts that reference other concepts are now loaded correctly from their
+  definition.
+  [#1236](https://github.com/tenzir/vast/pull/1236)
+
+- 🐞 The `vast status` command does not collect status information from sources
+  and sinks any longer. They were often too busy to respond, leading to a long
+  delay before the command completed.
+  [#1234](https://github.com/tenzir/vast/pull/1234)
+
+- 🐞 The summary log message of `vast export` now contains the correct number
+  of candidate events.
+  [#1228](https://github.com/tenzir/vast/pull/1228)
+
+- 🧬 The expression language gained support for the `#field` meta extractor.
+  It is the complement for `#type` and uses suffix matching for field names
+  at the layout level.
+  [#1228](https://github.com/tenzir/vast/pull/1228)
+
 - ⚠️ The `zeek` export format now strips off the prefix `zeek.` to ensure full
   compatibility with regular Zeek output. For all non-Zeek types, the prefix
   remains intact.
