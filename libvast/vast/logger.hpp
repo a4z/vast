@@ -21,6 +21,44 @@
 #include <caf/detail/pretty_type_name.hpp>
 #include <caf/logger.hpp>
 
+
+// from chat .. TODO, verify
+// VAST_INFO -> spdlog::info
+// VAST_VERBOSE -> spdlog::debug
+// VAST_DEBUG -> spdlog::trace
+// VAST_TRACE -> spdlog::trace
+
+#if VAST_LOG_LEVEL == VAST_LOG_LEVEL_TRACE
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_DEBUG
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_VERBOSE
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
+#elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_INFO
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_INFO
+#elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_WARNING
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_WARN
+#elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_ERROR
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_ERROR
+#elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_CRITICAL
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_CRITICAL
+#elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_QUIET
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+#endif
+
+#include <spdlog/spdlog.h>
+
+#define VAST_LOG_SPD_TRACE(m, ...) SPDLOG_LOGGER_TRACE(vast::log(), m, __VA_ARGS__)
+#define VAST_LOG_SPD_DEBUG(m, ...) SPDLOG_LOGGER_TRACE(vast::log(), m, __VA_ARGS__)
+#define VAST_LOG_SPD_VERBOSE(m, ...) SPDLOG_LOGGER_DEBUG(vast::log(), m, __VA_ARGS__)
+#define VAST_LOG_SPD_INFO(m, ...) SPDLOG_LOGGER_INFO(vast::log(), m, __VA_ARGS__)
+#define VAST_LOG_SPD_WARN(m, ...) SPDLOG_LOGGER_WARN(vast::log(), m, __VA_ARGS__)
+#define VAST_LOG_SPD_ERROR(m, ...) SPDLOG_LOGGER_ERROR(vast::log(), m, __VA_ARGS__)
+#define VAST_LOG_SPD_CRITICAL(m, ...) SPDLOG_LOGGER_CRITICAL(vast::log(), m, __VA_ARGS__)
+
+// -------
+
+
 namespace vast {
 
 namespace system {
@@ -28,6 +66,12 @@ namespace system {
 class configuration;
 
 }
+
+
+bool setup_spdlog(const system::configuration& cfg);
+std::shared_ptr<spdlog::logger> log() ;
+
+
 
 /// Converts a verbosity atom to its integer counterpart. For unknown atoms,
 /// the `default_value` parameter will be returned.

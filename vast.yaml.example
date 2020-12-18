@@ -15,6 +15,8 @@ vast:
   # working directory of the client. Note that this is disabled by default. If
   # not specified no log files are written for clients at all.
   #client-log-file: "client.log"
+  #Console color for log, values: always, automatic, never. (default automatic)
+  console: "automatic"
   # The unique ID of this node.
   node-id: "node"
   # List of paths to look for schema files in ascending order of priority.
