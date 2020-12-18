@@ -516,6 +516,8 @@ find_package(yaml-cpp 0.6.2 REQUIRED HINTS ${YAML_CPP_ROOT})
 get_filename_component(yaml_cpp_dir "${YAML_CPP_INCLUDE_DIR}" ABSOLUTE)
 get_filename_component(yaml_cpp_dir "${yaml_cpp_dir}" DIRECTORY)
 
+find_package(spdlog 1.5.0 REQUIRED)
+
 if (NOT VAST_USE_BUNDLED_CAF)
   # Try to find the required CAF components first...
   find_package(
