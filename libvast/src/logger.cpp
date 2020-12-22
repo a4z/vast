@@ -12,13 +12,13 @@
  ******************************************************************************/
 
 #include "vast/logger.hpp"
-
+//#include "vast/logger_backward.hpp"
 #include "vast/config.hpp"
 #include "vast/defaults.hpp"
 #include "vast/system/configuration.hpp"
 
 #include <caf/atom.hpp>
-
+#include <caf/local_actor.hpp>
 
 #include <spdlog/async.h>
 #include <spdlog/common.h>
@@ -65,10 +65,10 @@ constexpr spdlog::level::level_enum vast_loglevel_to_spd(const int value) {
       level = spdlog::level::warn;
       break;
     case VAST_LOG_LEVEL_INFO:
-      level = spdlog::level::info;
+      level = spdlog::level::info;   // TODO should be debug
       break;
     case VAST_LOG_LEVEL_VERBOSE:
-      level = spdlog::level::debug;
+      level = spdlog::level::info;
       break;
     case VAST_LOG_LEVEL_DEBUG:
       level = spdlog::level::debug;
@@ -221,3 +221,56 @@ void fixup_logger(const system::configuration& cfg) {
 }
 
 } // namespace vast
+
+
+// backwards compatible stuff here, to not intro a new files
+
+void vast::log_backwards(int level, const vast::backwards::line_builder& lb) {
+
+  if (vast_logger == nullptr) {
+    spdlog::set_level(spdlog::level::trace) ;
+    spdlog::trace("ILLEGAL: {}", lb.get());
+    return;
+  }
+
+  vast_logger->log(vast_loglevel_to_spd(level), lb.get()) ;
+
+}
+
+namespace vast::backwards {
+
+
+line_builder& line_builder::
+operator<<(const caf::local_actor* self) {
+  return *this << self->name();
+}
+
+line_builder& line_builder::operator<<(const std::string& str) {
+  return *this << str.c_str();
+}
+
+line_builder& line_builder::operator<<(caf::string_view str) {
+  if (!str_.empty() && str_.back() != ' ')
+    str_ += " ";
+  str_.insert(str_.end(), str.begin(), str.end());
+  return *this;
+}
+
+line_builder& line_builder::operator<<(const char* str) {
+  if (!str_.empty() && str_.back() != ' ')
+    str_ += " ";
+  str_ += str;
+  return *this;
+}
+
+line_builder& line_builder::operator<<(char x) {
+  const char buf[] = {x, '\0'};
+  return *this << buf;
+}
+
+const std::string& line_builder::get() const {
+  return str_;
+}
+
+
+}

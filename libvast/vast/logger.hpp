@@ -17,9 +17,10 @@
 #include "vast/detail/discard.hpp"
 #include "vast/detail/pp.hpp"
 #include "vast/detail/type_traits.hpp"
+#include "vast/logger_backwards.hpp" // compatible ;-)
 
 #include <caf/detail/pretty_type_name.hpp>
-#include <caf/logger.hpp>
+//#include <caf/logger.hpp>
 
 
 // from chat .. TODO, verify
@@ -33,7 +34,7 @@
 #elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_DEBUG
 #  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_VERBOSE
-#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
+#  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_INFO  // TOOD should be debug ?
 #elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_INFO
 #  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_INFO
 #elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_WARNING
@@ -48,13 +49,13 @@
 
 #include <spdlog/spdlog.h>
 
-#define VAST_LOG_SPD_TRACE(m, ...) SPDLOG_LOGGER_TRACE(vast::log(), m, __VA_ARGS__)
-#define VAST_LOG_SPD_DEBUG(m, ...) SPDLOG_LOGGER_TRACE(vast::log(), m, __VA_ARGS__)
-#define VAST_LOG_SPD_VERBOSE(m, ...) SPDLOG_LOGGER_DEBUG(vast::log(), m, __VA_ARGS__)
-#define VAST_LOG_SPD_INFO(m, ...) SPDLOG_LOGGER_INFO(vast::log(), m, __VA_ARGS__)
-#define VAST_LOG_SPD_WARN(m, ...) SPDLOG_LOGGER_WARN(vast::log(), m, __VA_ARGS__)
-#define VAST_LOG_SPD_ERROR(m, ...) SPDLOG_LOGGER_ERROR(vast::log(), m, __VA_ARGS__)
-#define VAST_LOG_SPD_CRITICAL(m, ...) SPDLOG_LOGGER_CRITICAL(vast::log(), m, __VA_ARGS__)
+#define VAST_LOG_SPD_TRACE(...) SPDLOG_LOGGER_TRACE(vast::log(), __VA_ARGS__)
+#define VAST_LOG_SPD_DEBUG(...) SPDLOG_LOGGER_DEBUG(vast::log(), __VA_ARGS__)
+#define VAST_LOG_SPD_VERBOSE(...) SPDLOG_LOGGER_INFO(vast::log(), __VA_ARGS__) // TODO should be debug ?
+#define VAST_LOG_SPD_INFO(...) SPDLOG_LOGGER_INFO(vast::log(), __VA_ARGS__)
+#define VAST_LOG_SPD_WARN(...) SPDLOG_LOGGER_WARN(vast::log(), __VA_ARGS__)
+#define VAST_LOG_SPD_ERROR(...) SPDLOG_LOGGER_ERROR(vast::log(), __VA_ARGS__)
+#define VAST_LOG_SPD_CRITICAL(...) SPDLOG_LOGGER_CRITICAL(vast::log(), __VA_ARGS__)
 
 // -------
 
@@ -78,7 +79,10 @@ std::shared_ptr<spdlog::logger> log() ;
 int loglevel_to_int(caf::atom_value ll, int default_value
                                         = VAST_LOG_LEVEL_QUIET);
 
-void fixup_logger(const system::configuration& cfg);
+// void fixup_logger(const system::configuration& cfg);
+
+
+void log_backwards(int level, const backwards::line_builder& lb) ;
 
 } // namespace vast
 
@@ -86,7 +90,9 @@ void fixup_logger(const system::configuration& cfg);
 
 #if defined(VAST_LOG_LEVEL)
 
-#define VAST_LOG_IMPL(lvl, msg) CAF_LOG_IMPL("vast", lvl, msg)
+//#define VAST_LOG_IMPL(lvl, msg) CAF_LOG_IMPL("vast", lvl, msg)
+//#define VAST_LOG_IMPL(lvl, msg) do { vast::log_backwards(lvl, vast::backwards::line_builder{} << msg) ; CAF_LOG_IMPL("vast", lvl, msg); } while(false)
+#define VAST_LOG_IMPL(lvl, msg) vast::log_backwards(lvl, vast::backwards::line_builder{} << msg)
 
 #define VAST_LOG_2(lvl, m1) VAST_LOG_IMPL(lvl, m1)
 
@@ -237,11 +243,18 @@ auto id_or_name(T&& x) {
 
 // -- VAST_ARG utility for formatting log output -------------------------------
 
-#define VAST_ARG_1(x) CAF_ARG(x)
+// #define VAST_ARG_1(x) CAF_ARG(x)
 
-#define VAST_ARG_2(x_name, x) CAF_ARG2(x_name, x)
+// #define VAST_ARG_2(x_name, x) CAF_ARG2(x_name, x)
 
-#define VAST_ARG_3(x_name, first, last) CAF_ARG3(x_name, first, last)
+// #define VAST_ARG_3(x_name, first, last) CAF_ARG3(x_name, first, last)
+
+#define VAST_ARG_1(x) vast::backwards::make_arg_wrapper(#x, x)
+
+#define VAST_ARG_2(x_name, x) vast::backwards::make_arg_wrapper(x_name, x)
+
+#define VAST_ARG_3(x_name, first, last) vast::backwards::make_arg_wrapper(x_name, first, last)
+
 
 /// Nicely formats a variable or argument. For example, `VAST_ARG(foo)`
 /// generates `foo = ...` in log output, where `...` is the content of the
