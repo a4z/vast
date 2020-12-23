@@ -48,6 +48,7 @@
 #endif
 
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
 
 #define VAST_LOG_SPD_TRACE(...) SPDLOG_LOGGER_TRACE(vast::log(), __VA_ARGS__)
 #define VAST_LOG_SPD_DEBUG(...) SPDLOG_LOGGER_DEBUG(vast::log(), __VA_ARGS__)
@@ -68,11 +69,34 @@ class configuration;
 
 }
 
+namespace detail{
+  template<std::size_t S> struct carrier {
+    char name[S] = {0};
+    constexpr const char* str() const {
+      return &name[0];;
+    }
+  };
+  template<typename ... T>
+  constexpr auto spd_msg_from_args(T && ... )  {
+    constexpr auto cnt =  sizeof...(T) ;
+    static_assert(cnt > 0) ;
+    constexpr auto len = cnt * 3 ;
+    carrier<len> cr {} ;
+    for (size_t i = 0; i < cnt; ++i) {
+      cr.name[i*3] = '{';
+      cr.name[i*3 + 1] = '}';
+      cr.name[i*3 + 2] = ' ';
+    }
+    cr.name[len - 1] = 0 ;
+    return cr ;
+  }
+}
+
+
+
 
 bool setup_spdlog(const system::configuration& cfg);
 std::shared_ptr<spdlog::logger> log() ;
-
-
 
 /// Converts a verbosity atom to its integer counterpart. For unknown atoms,
 /// the `default_value` parameter will be returned.
@@ -172,12 +196,14 @@ auto id_or_name(T&& x) {
 
 #  endif // VAST_LOG_LEVEL > VAST_LOG_LEVEL_TRACE
 
+#define VAST_ERROR(...) SPDLOG_LOGGER_DEBUG(vast::log(), vast::detail::spd_msg_from_args(__VA_ARGS__).str(), __VA_ARGS__)
+
 #  if VAST_LOG_LEVEL >= VAST_LOG_LEVEL_ERROR
-#    define VAST_ERROR(...)                                                    \
-      VAST_LOG_COMPONENT(VAST_LOG_LEVEL_ERROR, __VA_ARGS__)
+// #    define VAST_ERROR(...)                                                    \
+//       VAST_LOG_COMPONENT(VAST_LOG_LEVEL_ERROR, __VA_ARGS__)
 #    define VAST_ERROR_ANON(...) VAST_LOG(VAST_LOG_LEVEL_ERROR, __VA_ARGS__)
 #  else
-#    define VAST_ERROR(...) VAST_DISCARD_ARGS(__VA_ARGS__)
+//#    define VAST_ERROR(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 #    define VAST_ERROR_ANON(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 #  endif
 
