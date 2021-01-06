@@ -20,6 +20,7 @@
 #include "vast/logger_backwards.hpp" // compatible ;-)
 
 #include <caf/detail/pretty_type_name.hpp>
+#include <caf/detail/scope_guard.hpp>
 //#include <caf/logger.hpp>
 
 // from chat .. TODO, verify
@@ -49,15 +50,20 @@
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
 
-#define VAST_LOG_SPD_TRACE(...) SPDLOG_LOGGER_TRACE(vast::log(), __VA_ARGS__)
-#define VAST_LOG_SPD_DEBUG(...) SPDLOG_LOGGER_DEBUG(vast::log(), __VA_ARGS__)
+#define VAST_LOG_SPD_TRACE(...)                                                \
+  SPDLOG_LOGGER_TRACE(vast::detail::logger(), __VA_ARGS__)
+#define VAST_LOG_SPD_DEBUG(...)                                                \
+  SPDLOG_LOGGER_DEBUG(vast::detail::logger(), __VA_ARGS__)
 #define VAST_LOG_SPD_VERBOSE(...)                                              \
-  SPDLOG_LOGGER_DEBUG(vast::log(), __VA_ARGS__)
-#define VAST_LOG_SPD_INFO(...) SPDLOG_LOGGER_INFO(vast::log(), __VA_ARGS__)
-#define VAST_LOG_SPD_WARN(...) SPDLOG_LOGGER_WARN(vast::log(), __VA_ARGS__)
-#define VAST_LOG_SPD_ERROR(...) SPDLOG_LOGGER_ERROR(vast::log(), __VA_ARGS__)
+  SPDLOG_LOGGER_DEBUG(vast::detail::logger(), __VA_ARGS__)
+#define VAST_LOG_SPD_INFO(...)                                                 \
+  SPDLOG_LOGGER_INFO(vast::detail::logger(), __VA_ARGS__)
+#define VAST_LOG_SPD_WARN(...)                                                 \
+  SPDLOG_LOGGER_WARN(vast::detail::logger(), __VA_ARGS__)
+#define VAST_LOG_SPD_ERROR(...)                                                \
+  SPDLOG_LOGGER_ERROR(vast::detail::logger(), __VA_ARGS__)
 #define VAST_LOG_SPD_CRITICAL(...)                                             \
-  SPDLOG_LOGGER_CRITICAL(vast::log(), __VA_ARGS__)
+  SPDLOG_LOGGER_CRITICAL(vast::detail::logger(), __VA_ARGS__)
 
 // -------
 
@@ -69,6 +75,7 @@ class configuration;
 
 }
 
+namespace detail {
 /// Initialize the spdlog
 /// Creates the log and the sinks, sets loglevels and format
 /// Must be called before using the logger, otherwise log messages will
@@ -80,16 +87,21 @@ bool setup_spdlog(const system::configuration& cfg);
 /// for a graceful exit this function should be called.
 /// TODO THERE SHOULD BE A LOG CONTEXT (GUARD) BUT WITHOUT DESIGN DISCUSSON I
 /// WILL NOT IMPLEMENT THAT
-void shutdown_log();
+void shutdown_spdlog();
 
 /// Get a spdlog::logger handel
-/// TODO move to detail ?
-std::shared_ptr<spdlog::logger> log();
+std::shared_ptr<spdlog::logger> logger();
+
+} // namespace detail
 
 /// Converts a verbosity atom to its integer counterpart. For unknown atoms,
 /// the `default_value` parameter will be returned.
+/// Used to make log level strings from config, like 'debug', to a log level int
 int loglevel_to_int(caf::atom_value ll, int default_value
                                         = VAST_LOG_LEVEL_QUIET);
+
+[[nodiscard]] caf::detail::scope_guard<void (*)()>
+create_log_context(const vast::system::configuration& cfg);
 
 } // namespace vast
 
@@ -133,11 +145,12 @@ vast::backwards::line_builder mk_line_builder(T&&... t) {
 
 #  if VAST_LOG_LEVEL >= VAST_LOG_LEVEL_TRACE
 #    define VAST_TRACE(...)                                                    \
-      SPDLOG_LOGGER_TRACE(vast::log(), "ENTER {} {}", __func__,                \
+      SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {} {}", __func__,     \
                           vast::detail::mk_line_builder(__VA_ARGS__));         \
       auto CAF_UNIFYN(vast_log_trace_guard_)                                   \
         = ::caf::detail::make_scope_guard([=, func_name_ = __func__] {         \
-            SPDLOG_LOGGER_TRACE(vast::log(), "ENTER {}", func_name_);          \
+            SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {}",            \
+                                func_name_);                                   \
           })
 #  else // VAST_LOG_LEVEL > VAST_LOG_LEVEL_TRACE
 
@@ -146,51 +159,51 @@ vast::backwards::line_builder mk_line_builder(T&&... t) {
 #  endif // VAST_LOG_LEVEL > VAST_LOG_LEVEL_TRACE
 
 #  define VAST_ERROR(c, ...)                                                   \
-    SPDLOG_LOGGER_DEBUG(vast::log(), "{}",                                     \
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
                         vast::detail::mk_line_builder(                         \
                           ::vast::detail::id_or_name(c), __VA_ARGS__))
 #  define VAST_ERROR_ANON(...)                                                 \
-    SPDLOG_LOGGER_DEBUG(vast::log(), "{}",                                     \
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
                         vast::detail::mk_line_builder(__VA_ARGS__))
 
 #  define VAST_WARNING(c, ...)                                                 \
-    SPDLOG_LOGGER_WARN(vast::log(), "{}",                                      \
+    SPDLOG_LOGGER_WARN(vast::detail::logger(), "{}",                           \
                        vast::detail::mk_line_builder(                          \
                          ::vast::detail::id_or_name(c), __VA_ARGS__))
 #  define VAST_WARNING_ANON(...)                                               \
-    SPDLOG_LOGGER_WARN(vast::log(), "{}",                                      \
+    SPDLOG_LOGGER_WARN(vast::detail::logger(), "{}",                           \
                        vast::detail::mk_line_builder(__VA_ARGS__))
 
 #  define VAST_INFO(c, ...)                                                    \
-    SPDLOG_LOGGER_INFO(vast::log(), "{}",                                      \
+    SPDLOG_LOGGER_INFO(vast::detail::logger(), "{}",                           \
                        vast::detail::mk_line_builder(                          \
                          ::vast::detail::id_or_name(c), __VA_ARGS__))
 #  define VAST_INFO_ANON(...)                                                  \
-    SPDLOG_LOGGER_INFO(vast::log(), "{}",                                      \
+    SPDLOG_LOGGER_INFO(vast::detail::logger(), "{}",                           \
                        vast::detail::mk_line_builder(__VA_ARGS__))
 
 #  define VAST_VERBOSE(c, ...)                                                 \
-    SPDLOG_LOGGER_DEBUG(vast::log(), "{}",                                     \
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
                         vast::detail::mk_line_builder(                         \
                           ::vast::detail::id_or_name(c), __VA_ARGS__))
 #  define VAST_VERBOSE_ANON(...)                                               \
-    SPDLOG_LOGGER_DEBUG(vast::log(), "{}",                                     \
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
                         vast::detail::mk_line_builder(__VA_ARGS__))
 
 #  define VAST_DEBUG(c, ...)                                                   \
-    SPDLOG_LOGGER_TRACE(vast::log(), "{}",                                     \
+    SPDLOG_LOGGER_TRACE(vast::detail::logger(), "{}",                          \
                         vast::detail::mk_line_builder(                         \
                           ::vast::detail::id_or_name(c), __VA_ARGS__))
 #  define VAST_DEBUG_ANON(...)                                                 \
-    SPDLOG_LOGGER_TRACE(vast::log(), "{}",                                     \
+    SPDLOG_LOGGER_TRACE(vast::detail::logger(), "{}",                          \
                         vast::detail::mk_line_builder(__VA_ARGS__))
 
 #  define VAST_CRITICAL(c, ...)                                                \
-    SPDLOG_LOGGER_CRITICAL(vast::log(), "{}",                                  \
+    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(), "{}",                       \
                            vast::detail::mk_line_builder(                      \
                              ::vast::detail::id_or_name(c), __VA_ARGS__))
 #  define VAST_CRITICAL_ANON(...)                                              \
-    SPDLOG_LOGGER_CRITICAL(vast::log(), "{}",                                  \
+    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(), "{}",                       \
                            vast::detail::mk_line_builder(__VA_ARGS__))
 
 #else // defined(VAST_LOG_LEVEL)

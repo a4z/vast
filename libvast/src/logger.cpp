@@ -35,6 +35,13 @@
 
 namespace vast {
 
+caf::detail::scope_guard<void (*)()>
+create_log_context(const vast::system::configuration& cfg) {
+  vast::detail::setup_spdlog(cfg);
+  return caf::detail::make_scope_guard(
+    std::addressof(vast::detail::shutdown_spdlog));
+}
+
 namespace {
 
 constexpr bool is_vast_loglevel(const int value) {
@@ -101,6 +108,8 @@ std::shared_ptr<spdlog::async_logger> vast_logger = dev_null_logger();
 
 } // namespace
 
+namespace detail {
+
 bool setup_spdlog(const system::configuration& cfg) {
   if (vast_logger && vast_logger->name() != "/dev/null") {
     return false;
@@ -154,13 +163,17 @@ bool setup_spdlog(const system::configuration& cfg) {
   return true;
 }
 
-void shutdown_log() {
+void shutdown_spdlog() {
+  VAST_LOG_SPD_DEBUG("shut down logging") ;
+
   spdlog::shutdown();
 }
 
-std::shared_ptr<spdlog::logger> log() {
+std::shared_ptr<spdlog::logger> logger() {
   return vast_logger;
 }
+
+} // namespace detail
 
 } // namespace vast
 
@@ -219,30 +232,14 @@ int loglevel_to_int(caf::atom_value x, int default_value) {
   }
 }
 
-void fixup_logger(const system::configuration& cfg) {
-  setup_spdlog(cfg);
-  // Reset the logger so we can support the VERBOSE level
-  namespace lg = defaults::logger;
-  auto logger = caf::logger::current_logger();
-  // A workaround for the lack of an accessor function for logger.cfg_,
-  // see https://github.com/actor-framework/actor-framework/issues/1066.
-  auto& cfg_ = logger->*stowed<logger_cfg>::value;
-  auto verbosity = caf::get_if<caf::atom_value>(&cfg, "vast.verbosity");
-  auto file_verbosity = verbosity ? *verbosity : lg::file_verbosity;
-  auto console_verbosity = verbosity ? *verbosity : lg::console_verbosity;
-  file_verbosity = get_or(cfg, "vast.file-verbosity", file_verbosity);
-  console_verbosity
-    = caf::get_or(cfg, "vast.console-verbosity", console_verbosity);
-  cfg_.file_verbosity = loglevel_to_int(file_verbosity);
-  cfg_.console_verbosity = loglevel_to_int(console_verbosity);
-  cfg_.verbosity = std::max(cfg_.file_verbosity, cfg_.console_verbosity);
-}
-
 } // namespace vast
 
 namespace vast::backwards {
 
 line_builder& line_builder::operator<<(const caf::local_actor* self) {
+  if (not self)
+    return *this << "NULL Pointer";
+
   return *this << self->name();
 }
 

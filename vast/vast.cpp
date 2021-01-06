@@ -69,8 +69,8 @@ int main(int argc, char** argv) {
   if (!init_config(cfg, *invocation, std::cerr))
     return EXIT_FAILURE;
   caf::actor_system sys{cfg};
-  // fixup_logger(cfg);
-  vast::setup_spdlog(cfg) ;
+
+  auto log_context = vast::create_log_context(cfg) ;
 
   if (!cfg.config_file_path.empty())
     cfg.config_files.emplace_back(std::move(cfg.config_file_path));
@@ -81,24 +81,20 @@ int main(int argc, char** argv) {
     event_types::init(*std::move(schema));
   } else {
     VAST_ERROR_ANON("failed to read schema dirs:", render(schema.error()));
-    vast::shutdown_log();
     return EXIT_FAILURE;
   }
   // Dispatch to root command.
   auto result = run(*invocation, sys, factory);
   if (!result) {
     render_error(*root, result.error(), std::cerr);
-    vast::shutdown_log();
     return EXIT_FAILURE;
   }
   if (result->match_elements<caf::error>()) {
     auto& err = result->get_as<caf::error>(0);
     if (err) {
       vast::system::render_error(*root, err, std::cerr);
-      vast::shutdown_log();
       return EXIT_FAILURE;
     }
   }
-  vast::shutdown_log();
   return EXIT_SUCCESS;
 }
