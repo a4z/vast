@@ -518,10 +518,6 @@ get_filename_component(yaml_cpp_dir "${yaml_cpp_dir}" DIRECTORY)
 
 find_package(spdlog 1.5.0 REQUIRED)
 
-if(UNIX AND NOT APPLE)
-  find_package(fmt 5.2.1 REQUIRED)
-endif()
-
 if (NOT VAST_USE_BUNDLED_CAF)
   # Try to find the required CAF components first...
   find_package(

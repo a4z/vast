@@ -46,14 +46,6 @@
 #  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
 #endif
 
-
-#if defined (__linux__)
-  #if !defined(__clang__)
-    #define SPDLOG_FMT_EXTERNAL 1
-  #endif
-#endif
-
-
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
 
