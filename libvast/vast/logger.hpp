@@ -226,41 +226,46 @@ constexpr auto spd_msg_from_args(T&&...) {
                          __VA_ARGS__)
 
 
-
-
-
 #  define VAST_INFO(c, ...)                                                    \
-    SPDLOG_LOGGER_INFO(vast::detail::logger(), "{}",                           \
-                       vast::detail::mk_line_builder(                          \
-                         ::vast::detail::id_or_name(c), __VA_ARGS__))
+    SPDLOG_LOGGER_INFO(vast::detail::logger(),                            \
+                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
+                        ::vast::detail::id_or_name(c), __VA_ARGS__)
+
 #  define VAST_INFO_ANON(...)                                                  \
-    SPDLOG_LOGGER_INFO(vast::detail::logger(), "{}",                           \
-                       vast::detail::mk_line_builder(__VA_ARGS__))
+    SPDLOG_LOGGER_INFO(vast::detail::logger(),                            \
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
+                         __VA_ARGS__)
 
 #  define VAST_VERBOSE(c, ...)                                                 \
-    SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
-                        vast::detail::mk_line_builder(                         \
-                          ::vast::detail::id_or_name(c), __VA_ARGS__))
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                           \
+                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
+                        ::vast::detail::id_or_name(c), __VA_ARGS__)
+
 #  define VAST_VERBOSE_ANON(...)                                               \
-    SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
-                        vast::detail::mk_line_builder(__VA_ARGS__))
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                           \
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
+                         __VA_ARGS__)
+
 
 #  define VAST_DEBUG(c, ...)                                                   \
-    SPDLOG_LOGGER_TRACE(vast::detail::logger(), "{}",                          \
-                        vast::detail::mk_line_builder(                         \
-                          ::vast::detail::id_or_name(c), __VA_ARGS__))
+    SPDLOG_LOGGER_TRACE(vast::detail::logger(),                           \
+                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
+                        ::vast::detail::id_or_name(c), __VA_ARGS__)
+
 #  define VAST_DEBUG_ANON(...)                                                 \
-    SPDLOG_LOGGER_TRACE(vast::detail::logger(), "{}",                          \
-                        vast::detail::mk_line_builder(__VA_ARGS__))
+    SPDLOG_LOGGER_TRACE(vast::detail::logger(),                           \
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
+                         __VA_ARGS__)
 
 #  define VAST_CRITICAL(c, ...)                                                \
-    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(), "{}",                       \
-                           vast::detail::mk_line_builder(                      \
-                             ::vast::detail::id_or_name(c), __VA_ARGS__))
-#  define VAST_CRITICAL_ANON(...)                                              \
-    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(), "{}",                       \
-                           vast::detail::mk_line_builder(__VA_ARGS__))
+    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(),                       \
+                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
+                        ::vast::detail::id_or_name(c), __VA_ARGS__)
 
+#  define VAST_CRITICAL_ANON(...)                                              \
+    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(),                       \
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
+                         __VA_ARGS__)
 #else // defined(VAST_LOG_LEVEL)
 
 #  define VAST_LOG(...) VAST_DISCARD_ARGS(__VA_ARGS__)
