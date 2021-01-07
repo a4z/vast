@@ -24,6 +24,7 @@
 #include "vast/system/application.hpp"
 #include "vast/system/start_command.hpp"
 
+
 #include <caf/actor_system.hpp>
 #include <caf/actor_system_config.hpp>
 #include <caf/defaults.hpp>

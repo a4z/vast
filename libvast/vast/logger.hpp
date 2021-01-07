@@ -17,7 +17,7 @@
 #include "vast/detail/discard.hpp"
 #include "vast/detail/pp.hpp"
 #include "vast/detail/type_traits.hpp"
-#include "vast/logger_backwards.hpp" // compatible ;-)
+//#include "vast/logger_backwards.hpp" // compatible ;-)
 
 #include <caf/detail/pretty_type_name.hpp>
 #include <caf/detail/scope_guard.hpp>
@@ -46,8 +46,14 @@
 #  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
 #endif
 
-#include <spdlog/fmt/ostr.h>
-#include <spdlog/spdlog.h>
+// TODO this is deprectated,
+// use detail instead of internal, but old spdlog in Debian ...
+// #define FMT_USE_INTERNAL 1  // does not work ???
+// #include <spdlog/fmt/ostr.h>
+// #include <spdlog/spdlog.h>
+// keep that extra for now, to see which includes are required
+#include "loggerformatters.hpp"
+
 
 #define VAST_LOG_SPD_TRACE(...)                                                \
   SPDLOG_LOGGER_TRACE(vast::detail::logger(), __VA_ARGS__)
@@ -133,9 +139,10 @@ auto id_or_name(T&& x) {
 }
 
 template <typename... T>
-vast::backwards::line_builder mk_line_builder(T&&... t) {
+vast::backwards::line_builder mk_line_builder(T&&... ) {
+
   vast::backwards::line_builder lb;
-  (lb << ... << t);
+ // (lb << ... << t);
   return lb;
 }
 
@@ -164,51 +171,63 @@ constexpr auto spd_msg_from_args(T&&...) {
 
 } // namespace vast::detail
 
-// #  define VAST_ERROR(c, ...)                                                   \
-//     SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
-//                         vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
-//                         ::vast::detail::id_or_name(c), __VA_ARGS__)
-
-#  define VAST_ERROR(c, ...)                                                   \
-    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
-                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
-                          vast::detail::mk_line_builder(                         \
-                          ::vast::detail::id_or_name(c)), __VA_ARGS__)
 
 
-#if !defined(VAST_LOG_LEVEL)
+
+
+#if defined(VAST_LOG_LEVEL)
 
 #  if VAST_LOG_LEVEL >= VAST_LOG_LEVEL_TRACE
+// #    define VAST_TRACE(...)                                                    \
+//       SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {} {}", __func__,     \
+//                           vast::detail::mk_line_builder(__VA_ARGS__));         \
+//       auto CAF_UNIFYN(vast_log_trace_guard_)                                   \
+//         = ::caf::detail::make_scope_guard([=, func_name_ = __func__] {         \
+//             SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {}",            \
+//                                 func_name_);                                   \
+//           })
+
+
 #    define VAST_TRACE(...)                                                    \
-      SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {} {}", __func__,     \
-                          vast::detail::mk_line_builder(__VA_ARGS__));         \
+      SPDLOG_LOGGER_TRACE(vast::detail::logger(),                              \
+                      vast::detail::spd_msg_from_args(1, 2, __VA_ARGS__).str(),\
+                          "ENTER",  __func__, __VA_ARGS__);                  \
       auto CAF_UNIFYN(vast_log_trace_guard_)                                   \
         = ::caf::detail::make_scope_guard([=, func_name_ = __func__] {         \
             SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {}",            \
                                 func_name_);                                   \
           })
+
 #  else // VAST_LOG_LEVEL > VAST_LOG_LEVEL_TRACE
 
 #    define VAST_TRACE(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 
 #  endif // VAST_LOG_LEVEL > VAST_LOG_LEVEL_TRACE
 
-
 #  define VAST_ERROR(c, ...)                                                   \
-    SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
-                        vast::detail::mk_line_builder(                         \
-                          ::vast::detail::id_or_name(c), __VA_ARGS__))
-#  define VAST_ERROR_ANON(...)                                                 \
-    SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
-                        vast::detail::mk_line_builder(__VA_ARGS__))
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
+                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
+                        ::vast::detail::id_or_name(c), __VA_ARGS__)
+
+#  define VAST_ERROR_ANON(...)                                                   \
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
+                         __VA_ARGS__)
+
 
 #  define VAST_WARNING(c, ...)                                                 \
-    SPDLOG_LOGGER_WARN(vast::detail::logger(), "{}",                           \
-                       vast::detail::mk_line_builder(                          \
-                         ::vast::detail::id_or_name(c), __VA_ARGS__))
+    SPDLOG_LOGGER_WARN(vast::detail::logger(),                                 \
+                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
+                        ::vast::detail::id_or_name(c), __VA_ARGS__)
+
 #  define VAST_WARNING_ANON(...)                                               \
-    SPDLOG_LOGGER_WARN(vast::detail::logger(), "{}",                           \
-                       vast::detail::mk_line_builder(__VA_ARGS__))
+    SPDLOG_LOGGER_WARN(vast::detail::logger(),                                \
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
+                         __VA_ARGS__)
+
+
+
+
 
 #  define VAST_INFO(c, ...)                                                    \
     SPDLOG_LOGGER_INFO(vast::detail::logger(), "{}",                           \
@@ -244,13 +263,13 @@ constexpr auto spd_msg_from_args(T&&...) {
 
 #else // defined(VAST_LOG_LEVEL)
 
-// #  define VAST_LOG(...) VAST_DISCARD_ARGS(__VA_ARGS__)
+#  define VAST_LOG(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 
-// #  define VAST_LOG_COMPONENT(...) VAST_DISCARD_ARGS(__VA_ARGS__)
+#  define VAST_LOG_COMPONENT(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 
 #  define VAST_TRACE(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 
-//#  define VAST_ERROR(...) VAST_DISCARD_ARGS(__VA_ARGS__)
+#  define VAST_ERROR(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 #  define VAST_ERROR_ANON(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 
 #  define VAST_WARNING(...) VAST_DISCARD_ARGS(__VA_ARGS__)
