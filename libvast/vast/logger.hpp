@@ -139,9 +139,45 @@ vast::backwards::line_builder mk_line_builder(T&&... t) {
   (lb << ... << t);
   return lb;
 }
+
+template <size_t S>
+struct carrier {
+  char name[S] = {0};
+  constexpr const char* str() const {
+    return &name[0];
+    ;
+  }
+};
+template <typename... T>
+constexpr auto spd_msg_from_args(T&&...) {
+  constexpr auto cnt = sizeof...(T);
+  static_assert(cnt > 0);
+  constexpr auto len = cnt * 3;
+  carrier<len> cr{};
+  for (size_t i = 0; i < cnt; ++i) {
+    cr.name[i * 3] = '{';
+    cr.name[i * 3 + 1] = '}';
+    cr.name[i * 3 + 2] = ' ';
+  }
+  cr.name[len - 1] = 0;
+  return cr;
+}
+
 } // namespace vast::detail
 
-#if defined(VAST_LOG_LEVEL)
+// #  define VAST_ERROR(c, ...)                                                   \
+//     SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
+//                         vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
+//                         ::vast::detail::id_or_name(c), __VA_ARGS__)
+
+#  define VAST_ERROR(c, ...)                                                   \
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
+                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
+                          vast::detail::mk_line_builder(                         \
+                          ::vast::detail::id_or_name(c)), __VA_ARGS__)
+
+
+#if !defined(VAST_LOG_LEVEL)
 
 #  if VAST_LOG_LEVEL >= VAST_LOG_LEVEL_TRACE
 #    define VAST_TRACE(...)                                                    \
@@ -157,6 +193,7 @@ vast::backwards::line_builder mk_line_builder(T&&... t) {
 #    define VAST_TRACE(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 
 #  endif // VAST_LOG_LEVEL > VAST_LOG_LEVEL_TRACE
+
 
 #  define VAST_ERROR(c, ...)                                                   \
     SPDLOG_LOGGER_DEBUG(vast::detail::logger(), "{}",                          \
@@ -214,7 +251,7 @@ vast::backwards::line_builder mk_line_builder(T&&... t) {
 
 #  define VAST_TRACE(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 
-#  define VAST_ERROR(...) VAST_DISCARD_ARGS(__VA_ARGS__)
+//#  define VAST_ERROR(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 #  define VAST_ERROR_ANON(...) VAST_DISCARD_ARGS(__VA_ARGS__)
 
 #  define VAST_WARNING(...) VAST_DISCARD_ARGS(__VA_ARGS__)

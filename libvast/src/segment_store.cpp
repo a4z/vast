@@ -233,6 +233,7 @@ caf::error segment_store::erase(const ids& xs) {
     }
     for (auto& slice : new_slices) {
       if (auto err = builder->add(slice)) {
+        //VAST_ERROR(this, "failed to add slice to builder:", err);
         VAST_ERROR(this, "failed to add slice to builder:", err);
       } else if (!segments_.inject(slice.offset(),
                                    slice.offset() + slice.rows(),

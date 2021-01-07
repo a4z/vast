@@ -63,6 +63,11 @@ struct single_arg_wrapper {
   single_arg_wrapper(const char* x, const T& y) : name(x), value(y) {
     // nop
   }
+  template <typename OStream>
+  friend OStream& operator<<(OStream& os, const single_arg_wrapper& self) {
+    return os << to_string(self);
+  }
+
 };
 
 template <class T>
@@ -81,6 +86,10 @@ struct range_arg_wrapper {
   range_arg_wrapper(const char* x, Iterator begin, Iterator end)
     : name(x), first(begin), last(end) {
     // nop
+  }
+  template <typename OStream>
+  friend OStream& operator<<(OStream& os, const range_arg_wrapper& self) {
+    return os << to_string(self);
   }
 };
 
@@ -117,3 +126,60 @@ make_arg_wrapper(const char* name, Iterator first, Iterator last) {
 }
 
 } // namespace vast::backwards
+
+template<typename OStream>
+OStream& operator<<(OStream& stm, const caf::local_actor* self) {
+
+  stm << self->name() ;
+  return stm ;
+}
+
+
+template<typename OStream, typename T1, typename T2>
+OStream& operator<<(OStream& stm, const caf::stateful_actor<T1,T2>* self) {
+
+  stm << self->name() ;
+  return stm ;
+}
+
+
+
+template<typename OStream, typename T>
+OStream& operator<<(OStream& stm, const vast::backwards::range_arg_wrapper<T>& arg) {
+  stm << vast::backwards::to_string(arg) ;
+  return stm ;
+}
+
+template<typename OStream, typename T>
+OStream& operator<<(OStream& stm, const vast::backwards::single_arg_wrapper<T>& arg) {
+  stm << vast::backwards::to_string(arg) ;
+  return stm ;
+}
+
+template<typename OStream>
+OStream& operator<<(OStream& stm, const caf::string_view& sv) {
+    std::string s;
+    s.insert(s.end(), sv.begin(), sv.end());
+    stm << s ;
+    return stm;
+}
+
+template<typename OStream>
+OStream& operator<<(OStream& stm, const caf::error& ) {
+
+    return stm;
+}
+
+
+
+
+// template<typename OStream, typename T>
+// typename std::enable_if<!std::is_pointer<T>::value, OStream&>::type
+// operator<<(OStream& stm, const T& x) {
+//     stm << caf::deep_to_string(x);
+//     return stm;
+// }
+
+
+
+
