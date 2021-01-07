@@ -21,7 +21,6 @@
 
 #include <caf/detail/pretty_type_name.hpp>
 #include <caf/detail/scope_guard.hpp>
-//#include <caf/logger.hpp>
 
 // from chat .. TODO, verify
 // VAST_INFO -> spdlog::info
@@ -46,6 +45,14 @@
 #elif VAST_LOG_LEVEL == VAST_LOG_LEVEL_QUIET
 #  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
 #endif
+
+
+#if defined (__linux__)
+  #if !defined(__clang__)
+    #define SPDLOG_FMT_EXTERNAL 1
+  #endif
+#endif
+
 
 #include <spdlog/fmt/ostr.h>
 #include <spdlog/spdlog.h>
