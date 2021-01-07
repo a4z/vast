@@ -27,7 +27,7 @@ RUN apt-get -qqy install libflatbuffers-dev flatbuffers-compiler-dev
 
 # spdlog
 RUN echo "deb http://deb.debian.org/debian buster-backports main" | tee -a /etc/apt/sources.list && apt-get -qq update
-RUN apt-get -qqy  -t buster-backports install libspdlog-dev
+RUN apt-get -qqy  -t buster-backports install libspdlog-dev libfmt-dev
 
 # VAST
 WORKDIR $BUILD_DIR/vast

@@ -101,11 +101,6 @@ inline std::shared_ptr<spdlog::async_logger> dev_null_logger() {
 
 std::shared_ptr<spdlog::async_logger> vast_logger = dev_null_logger();
 
-// TODO could be like that ^^ but I think it's good to have the async_logger
-// here since it also documents the real type
-// std::shared_ptr<spdlog::logger> vast_logger =
-// spdlog::null_logger_mt("/dev/null");
-
 } // namespace
 
 namespace detail {
@@ -164,7 +159,7 @@ bool setup_spdlog(const system::configuration& cfg) {
 }
 
 void shutdown_spdlog() {
-  VAST_LOG_SPD_DEBUG("shut down logging") ;
+  VAST_LOG_SPD_DEBUG("shut down logging");
 
   spdlog::shutdown();
 }
@@ -233,41 +228,3 @@ int loglevel_to_int(caf::atom_value x, int default_value) {
 }
 
 } // namespace vast
-
-namespace vast::backwards {
-
-line_builder& line_builder::operator<<(const caf::local_actor* self) {
-  if (not self)
-    return *this << "NULL Pointer";
-
-  return *this << self->name();
-}
-
-line_builder& line_builder::operator<<(const std::string& str) {
-  return *this << str.c_str();
-}
-
-line_builder& line_builder::operator<<(caf::string_view str) {
-  if (!str_.empty() && str_.back() != ' ')
-    str_ += " ";
-  str_.insert(str_.end(), str.begin(), str.end());
-  return *this;
-}
-
-line_builder& line_builder::operator<<(const char* str) {
-  if (!str_.empty() && str_.back() != ' ')
-    str_ += " ";
-  str_ += str;
-  return *this;
-}
-
-line_builder& line_builder::operator<<(char x) {
-  const char buf[] = {x, '\0'};
-  return *this << buf;
-}
-
-const std::string& line_builder::get() const {
-  return str_;
-}
-
-} // namespace vast::backwards
