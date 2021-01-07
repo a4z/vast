@@ -254,7 +254,12 @@ endif ()
 
 target_link_libraries(libvast PRIVATE yaml-cpp)
 
+if(UNIX AND NOT APPLE)
+target_link_libraries(libvast PUBLIC fmt::fmt)
+endif()
+
 target_link_libraries(libvast PUBLIC spdlog::spdlog)
+
 
 target_link_libraries(libvast PUBLIC ${flatbuffers_target})
 add_dependencies(libvast libvast_flatbuffers)
