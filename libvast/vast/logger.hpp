@@ -21,7 +21,6 @@
 
 #include <caf/detail/pretty_type_name.hpp>
 #include <caf/detail/scope_guard.hpp>
-//#include <caf/logger.hpp>
 
 // from chat .. TODO, verify
 // VAST_INFO -> spdlog::info
