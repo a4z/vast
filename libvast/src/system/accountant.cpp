@@ -261,7 +261,6 @@ accountant(accountant_actor* self, accountant_config cfg) {
     },
     [=](const std::string& key, duration value) {
       VAST_TRACE(self, "received", key, "from", self->current_sender());
-      VAST_TRACE(self, "received", key, "from");
       record(self, key, value);
     },
     [=](const std::string& key, time value) {

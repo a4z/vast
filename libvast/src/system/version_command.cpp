@@ -18,7 +18,6 @@
 #include "vast/config.hpp"
 #include "vast/json.hpp"
 #include "vast/logger.hpp"
-#include "caf/message.hpp"
 
 #if VAST_HAVE_ARROW
 #  include <arrow/util/config.h>
