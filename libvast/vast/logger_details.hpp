@@ -35,18 +35,16 @@
 #include <string>
 #include <type_traits>
 
-#define FMT_SAFE_DURATION_CAST 1
-#define FMT_USE_INTERNAL 1 // does not work ???
-
 #include <spdlog/spdlog.h>
-// TOOD , this is /could be problematic ....
-#if defined(FMT_USE_INTERNAL)
+#define FMT_SAFE_DURATION_CAST 1
+#if defined(__APPLE__) // this is of course not optimal
 #  include <spdlog/fmt/chrono.h>
 #  include <spdlog/fmt/ostr.h>
 #else
 #  include <fmt/chrono.h>
-#  include <fmt/ostr.h>
+#  include <fmt/ostream.h>
 #endif
+
 
 namespace vast::detail {
 
