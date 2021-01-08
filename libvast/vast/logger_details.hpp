@@ -1,7 +1,15 @@
-
-// have this here for now to see which extra includes are needed
-
-#include "vast/logger_backwards.hpp" // compatible ;-)
+/******************************************************************************
+ *                    _   _____   __________                                  *
+ *                   | | / / _ | / __/_  __/     Visibility                   *
+ *                   | |/ / __ |_\ \  / /          Across                     *
+ *                   |___/_/ |_/___/ /_/       Space and Time                 *
+ *                                                                            *
+ * This file is part of VAST. It is subject to the license terms in the       *
+ * LICENSE file found in the top-level directory of this distribution and at  *
+ * http://vast.io/license. No part of VAST, including this file, may be       *
+ * copied, modified, propagated, or distributed except according to the terms *
+ * contained in the LICENSE file.                                             *
+ ******************************************************************************/
 
 #include "vast/path.hpp"
 #include "vast/uuid.hpp"
@@ -15,11 +23,27 @@
 #include "vast/format/multi_layout_reader.hpp"
 #include "vast/detail/stable_set.hpp"
 
+#include "vast/config.hpp"
+#include "vast/detail/pp.hpp"
+#include "vast/detail/type_traits.hpp"
+
+#include <caf/detail/pretty_type_name.hpp>
+#include <caf/detail/scope_guard.hpp>
+
+#include <caf/deep_to_string.hpp>
+#include <caf/event_based_actor.hpp>
+#include <caf/stateful_actor.hpp>
+#include <caf/string_view.hpp>
+
+#include <string>
+#include <type_traits>
+
+
 #define FMT_SAFE_DURATION_CAST 1
 #define FMT_USE_INTERNAL 1  // does not work ???
 
 #include <spdlog/spdlog.h>
-// TOOD , this is  problematic ....
+// TOOD , this is /could be problematic ....
 #if defined(FMT_USE_INTERNAL)
 #include  <spdlog/fmt/ostr.h>
 #include  <spdlog/fmt/chrono.h>
@@ -29,7 +53,127 @@
 #endif
 
 
-#include <chrono>
+namespace vast::detail {
+
+
+/// Initialize the spdlog
+/// Creates the log and the sinks, sets loglevels and format
+/// Must be called before using the logger, otherwise log messages will
+/// silently be discarded.
+bool setup_spdlog(const system::configuration& cfg);
+
+/// Shuts down the logging system
+/// Since vast logger runs async and has therefore a  background thread.
+/// for a graceful exit this function should be called.
+/// TODO THERE SHOULD BE A LOG CONTEXT (GUARD) BUT WITHOUT DESIGN DISCUSSON I
+/// WILL NOT IMPLEMENT THAT
+void shutdown_spdlog();
+
+/// Get a spdlog::logger handel
+std::shared_ptr<spdlog::logger> logger();
+
+
+template <class T>
+auto id_or_name(T&& x) {
+  static_assert(!std::is_same_v<const char*, std::remove_reference<T>>,
+                "const char* is not allowed for the first argument in a "
+                "logging statement. Supply a component or use "
+                "VAST_[ERROR|WARNING|INFO|VERBOSE|DEBUG]_ANON instead.");
+  if constexpr (std::is_pointer_v<T>) {
+    using value_type = std::remove_pointer_t<T>;
+    if constexpr (has_ostream_operator<value_type>)
+      return *x;
+    else if constexpr (has_to_string<value_type>)
+      return to_string(*x);
+    else
+      return caf::detail::pretty_type_name(typeid(value_type));
+  } else {
+    if constexpr (has_ostream_operator<T>)
+      return std::forward<T>(x);
+    else if constexpr (has_to_string<T>)
+      return to_string(std::forward<T>(x));
+    else
+      return caf::detail::pretty_type_name(typeid(T));
+  }
+}
+
+
+template <size_t S>
+struct carrier {
+  char name[S] = {0};
+  constexpr const char* str() const {
+    return &name[0];
+    ;
+  }
+};
+template <typename... T>
+constexpr auto spd_msg_from_args(T&&...) {
+  constexpr auto cnt = sizeof...(T);
+  static_assert(cnt > 0);
+  constexpr auto len = cnt * 3;
+  carrier<len> cr{};
+  for (size_t i = 0; i < cnt; ++i) {
+    cr.name[i * 3] = '{';
+    cr.name[i * 3 + 1] = '}';
+    cr.name[i * 3 + 2] = ' ';
+  }
+  cr.name[len - 1] = 0;
+  return cr;
+}
+
+
+template <class T>
+struct single_arg_wrapper {
+  const char* name;
+  const T& value;
+  single_arg_wrapper(const char* x, const T& y) : name(x), value(y) {
+    // nop
+  }
+  template <typename OStream>
+  friend OStream& operator<<(OStream& os, const single_arg_wrapper& self) {
+    std::string result = self.name;
+    result += " = ";
+    result += caf::deep_to_string(self.value);;
+    return os << result;
+  }
+
+};
+
+
+template <class T>
+single_arg_wrapper<T> make_arg_wrapper(const char* name, const T& value) {
+  return {name, value};
+}
+
+
+template <class Iterator>
+struct range_arg_wrapper {
+  const char* name;
+  Iterator first;
+  Iterator last;
+  range_arg_wrapper(const char* x, Iterator begin, Iterator end)
+    : name(x), first(begin), last(end) {
+    // nop
+  }
+  template <typename OStream>
+  friend OStream& operator<<(OStream& os, const range_arg_wrapper& self) {
+    std::string result = self.name;
+    result += " = ";
+    result += caf::deep_to_string(self);
+    return os << result;
+  }
+};
+
+template <class Iterator>
+range_arg_wrapper<Iterator>
+make_arg_wrapper(const char* name, Iterator first, Iterator last) {
+  return {name, first, last};
+}
+
+
+
+} // namespace vast::detail
+
 
 
 template <>
@@ -41,8 +185,8 @@ struct fmt::formatter<caf::event_based_actor> {
   }
 
   template <typename FormatContext>
-  auto format(const caf::event_based_actor& x, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", x.name());
+  auto format(const caf::event_based_actor& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", item.name());
   }
 };
 
@@ -57,12 +201,10 @@ struct fmt::formatter<caf::typed_actor<T...>> {
   }
 
   template <typename FormatContext>
-  auto format(const caf::typed_actor<T...>& x, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(x));
+  auto format(const caf::typed_actor<T...>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
-
-
 
 
 
@@ -75,8 +217,8 @@ struct fmt::formatter<caf::event_based_actor*> {
   }
 
   template <typename FormatContext>
-  auto format(const caf::event_based_actor* x, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", x->name());
+  auto format(const caf::event_based_actor* item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", item->name());
   }
 };
 
@@ -91,8 +233,8 @@ struct fmt::formatter<caf::io::broker*> {
   }
 
   template <typename FormatContext>
-  auto format(const caf::io::broker* x, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(x));
+  auto format(const caf::io::broker* item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -106,8 +248,8 @@ struct fmt::formatter<caf::stateful_actor<State,Base>> {
   }
 
   template <typename FormatContext>
-  auto format(const caf::stateful_actor<State,Base>   & x, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", x.name());
+  auto format(const caf::stateful_actor<State,Base>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", item.name());
   }
 };
 
@@ -122,8 +264,8 @@ struct fmt::formatter<caf::stateful_actor<State,Base>*> {
   }
 
   template <typename FormatContext>
-  auto format(const caf::stateful_actor<State,Base>*const x, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", x->name());
+  auto format(const caf::stateful_actor<State,Base>*const item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", item->name());
   }
 };
 
@@ -136,8 +278,8 @@ struct fmt::formatter<caf::actor> {
   }
 
   template <typename FormatContext>
-  auto format(const caf::actor& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const caf::actor& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -152,8 +294,8 @@ struct fmt::formatter<vast::path> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::path& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", p.str());
+  auto format(const vast::path& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -166,8 +308,8 @@ struct fmt::formatter<vast::type> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::type& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::type& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 template <>
@@ -179,8 +321,8 @@ struct fmt::formatter<vast::schema> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::schema& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::schema& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -194,11 +336,8 @@ struct fmt::formatter<vast::uuid> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::uuid& p, FormatContext& ctx) {
-    vast::backwards::line_builder lb;
-    lb << p ;
-    return format_to(ctx.out(), "{}", lb.get());
-    //return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::uuid& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -212,8 +351,8 @@ struct fmt::formatter<vast::record_field> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::record_field& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::record_field& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -226,8 +365,8 @@ struct fmt::formatter<vast::predicate> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::predicate& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::predicate& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -240,8 +379,8 @@ struct fmt::formatter<vast::bitmap> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::bitmap& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::bitmap& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -254,8 +393,8 @@ struct fmt::formatter<vast::offset> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::offset& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::offset& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -272,8 +411,8 @@ struct fmt::formatter<vast::format::multi_layout_reader> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::format::multi_layout_reader& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::format::multi_layout_reader& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -288,8 +427,8 @@ struct fmt::formatter<vast::curried_predicate> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::curried_predicate& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::curried_predicate& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -305,8 +444,8 @@ struct fmt::formatter<vast::invocation> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::invocation& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", p.name());
+  auto format(const vast::invocation& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}",item.name());
   }
 };
 
@@ -321,11 +460,8 @@ struct fmt::formatter<std::vector<T>> {
   }
 
   template <typename FormatContext>
-  auto format(const std::vector<T>& p, FormatContext& ctx) {
-    vast::backwards::line_builder lb;
-    lb << p ;
-    return format_to(ctx.out(), "{}", lb.get());
-    //return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const std::vector<T>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -339,8 +475,8 @@ struct fmt::formatter<std::map<vast::offset, std::pair<size_t,vast::ids>>> {
   }
 
   template <typename FormatContext>
-  auto format(const std::map<vast::offset, std::pair<size_t,vast::ids>>& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const std::map<vast::offset, std::pair<size_t,vast::ids>>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -357,11 +493,8 @@ struct fmt::formatter<vast::detail::stable_set<T>> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::detail::stable_set<T>& p, FormatContext& ctx) {
-    vast::backwards::line_builder lb;
-    lb << p ;
-    return format_to(ctx.out(), "{}", lb.get());
-    //return format_to(ctx.out(), "{}", to_string(p));
+  auto format(const vast::detail::stable_set<T>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -376,10 +509,8 @@ struct fmt::formatter<vast::record_type> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::record_type& val, FormatContext& ctx) {
-    vast::backwards::line_builder lb;
-    lb << val ;
-    return format_to(ctx.out(), "{}", lb.get());
+  auto format(const vast::record_type& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -410,12 +541,8 @@ struct fmt::formatter<vast::data_view> {
   }
 
   template <typename FormatContext>
-  auto format(const vast::data_view& v, FormatContext& ctx) {
-    (void)v;
-    vast::backwards::line_builder lb ;
-    lb << v ;
-    return format_to(ctx.out(), "{}", lb.get()); // TODO
-    //return format_to(ctx.out(), "{}", to_string(v));
+  auto format(const vast::data_view& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
@@ -437,36 +564,6 @@ struct fmt::formatter<vast::expression> {
 
 
 
-
-
-
-template <class T>
-struct fmt::formatter<vast::backwards::single_arg_wrapper<T>> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const vast::backwards::single_arg_wrapper<T>& val, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", vast::backwards::to_string(val));
-  }
-};
-
-template <class Iterator>
-struct fmt::formatter<vast::backwards::range_arg_wrapper<Iterator>> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const vast::backwards::range_arg_wrapper<Iterator>& val, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", vast::backwards::to_string(val));
-  }
-};
 
 template <class T>
 struct fmt::formatter<caf::optional<T>> {
@@ -570,22 +667,3 @@ struct fmt::formatter<caf::strong_actor_ptr> {
 
 
 
-
-
-// it would be so nice if that would work...
-
-// template <typename Whatever>
-// struct fmt::formatter<Whatever> {
-
-//   template <typename ParseContext>
-//   constexpr auto parse(ParseContext& ctx) {
-//     return ctx.begin();
-//   }
-
-//   template <typename FormatContext>
-//   auto format(const Whatever& val, FormatContext& ctx) {
-//     vast::backwards::line_builder lb;
-//     lb << val ;
-//     return format_to(ctx.out(), "{}", lb.get());
-//   }
-// };

@@ -13,14 +13,7 @@
 
 #pragma once
 
-#include "vast/config.hpp"
 #include "vast/detail/discard.hpp"
-#include "vast/detail/pp.hpp"
-#include "vast/detail/type_traits.hpp"
-//#include "vast/logger_backwards.hpp" // compatible ;-)
-
-#include <caf/detail/pretty_type_name.hpp>
-#include <caf/detail/scope_guard.hpp>
 
 // from chat .. TODO, verify
 // VAST_INFO -> spdlog::info
@@ -46,13 +39,8 @@
 #  define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
 #endif
 
-// TODO this is deprectated,
-// use detail instead of internal, but old spdlog in Debian ...
-// #define FMT_USE_INTERNAL 1  // does not work ???
-// #include <spdlog/fmt/ostr.h>
-// #include <spdlog/spdlog.h>
-// keep that extra for now, to see which includes are required
-#include "loggerformatters.hpp"
+// Important: keep that below the log level mapping
+#include "logger_details.hpp"
 
 
 #define VAST_LOG_SPD_TRACE(...)                                                \
@@ -80,25 +68,6 @@ class configuration;
 
 }
 
-namespace detail {
-/// Initialize the spdlog
-/// Creates the log and the sinks, sets loglevels and format
-/// Must be called before using the logger, otherwise log messages will
-/// silently be discarded.
-bool setup_spdlog(const system::configuration& cfg);
-
-/// Shuts down the logging system
-/// Since vast logger runs async and has therefore a  background thread.
-/// for a graceful exit this function should be called.
-/// TODO THERE SHOULD BE A LOG CONTEXT (GUARD) BUT WITHOUT DESIGN DISCUSSON I
-/// WILL NOT IMPLEMENT THAT
-void shutdown_spdlog();
-
-/// Get a spdlog::logger handel
-std::shared_ptr<spdlog::logger> logger();
-
-} // namespace detail
-
 /// Converts a verbosity atom to its integer counterpart. For unknown atoms,
 /// the `default_value` parameter will be returned.
 /// Used to make log level strings from config, like 'debug', to a log level int
@@ -112,65 +81,6 @@ create_log_context(const vast::system::configuration& cfg);
 
 // -- VAST logging macros ------------------------------------------------------
 
-namespace vast::detail {
-
-template <class T>
-auto id_or_name(T&& x) {
-  static_assert(!std::is_same_v<const char*, std::remove_reference<T>>,
-                "const char* is not allowed for the first argument in a "
-                "logging statement. Supply a component or use "
-                "VAST_[ERROR|WARNING|INFO|VERBOSE|DEBUG]_ANON instead.");
-  if constexpr (std::is_pointer_v<T>) {
-    using value_type = std::remove_pointer_t<T>;
-    if constexpr (has_ostream_operator<value_type>)
-      return *x;
-    else if constexpr (has_to_string<value_type>)
-      return to_string(*x);
-    else
-      return caf::detail::pretty_type_name(typeid(value_type));
-  } else {
-    if constexpr (has_ostream_operator<T>)
-      return std::forward<T>(x);
-    else if constexpr (has_to_string<T>)
-      return to_string(std::forward<T>(x));
-    else
-      return caf::detail::pretty_type_name(typeid(T));
-  }
-}
-
-template <typename... T>
-vast::backwards::line_builder mk_line_builder(T&&... ) {
-
-  vast::backwards::line_builder lb;
- // (lb << ... << t);
-  return lb;
-}
-
-template <size_t S>
-struct carrier {
-  char name[S] = {0};
-  constexpr const char* str() const {
-    return &name[0];
-    ;
-  }
-};
-template <typename... T>
-constexpr auto spd_msg_from_args(T&&...) {
-  constexpr auto cnt = sizeof...(T);
-  static_assert(cnt > 0);
-  constexpr auto len = cnt * 3;
-  carrier<len> cr{};
-  for (size_t i = 0; i < cnt; ++i) {
-    cr.name[i * 3] = '{';
-    cr.name[i * 3 + 1] = '}';
-    cr.name[i * 3 + 2] = ' ';
-  }
-  cr.name[len - 1] = 0;
-  return cr;
-}
-
-} // namespace vast::detail
-
 
 
 
@@ -178,15 +88,6 @@ constexpr auto spd_msg_from_args(T&&...) {
 #if defined(VAST_LOG_LEVEL)
 
 #  if VAST_LOG_LEVEL >= VAST_LOG_LEVEL_TRACE
-// #    define VAST_TRACE(...)                                                    \
-//       SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {} {}", __func__,     \
-//                           vast::detail::mk_line_builder(__VA_ARGS__));         \
-//       auto CAF_UNIFYN(vast_log_trace_guard_)                                   \
-//         = ::caf::detail::make_scope_guard([=, func_name_ = __func__] {         \
-//             SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {}",            \
-//                                 func_name_);                                   \
-//           })
-
 
 #    define VAST_TRACE(...)                                                    \
       SPDLOG_LOGGER_TRACE(vast::detail::logger(),                              \
@@ -293,18 +194,12 @@ constexpr auto spd_msg_from_args(T&&...) {
 
 // -- VAST_ARG utility for formatting log output -------------------------------
 
-// #define VAST_ARG_1(x) CAF_ARG(x)
+#define VAST_ARG_1(x) vast::detail::make_arg_wrapper(#x, x)
 
-// #define VAST_ARG_2(x_name, x) CAF_ARG2(x_name, x)
-
-// #define VAST_ARG_3(x_name, first, last) CAF_ARG3(x_name, first, last)
-
-#define VAST_ARG_1(x) vast::backwards::make_arg_wrapper(#x, x)
-
-#define VAST_ARG_2(x_name, x) vast::backwards::make_arg_wrapper(x_name, x)
+#define VAST_ARG_2(x_name, x) vast::detail::make_arg_wrapper(x_name, x)
 
 #define VAST_ARG_3(x_name, first, last)                                        \
-  vast::backwards::make_arg_wrapper(x_name, first, last)
+  vast::detail::make_arg_wrapper(x_name, first, last)
 
 /// Nicely formats a variable or argument. For example, `VAST_ARG(foo)`
 /// generates `foo = ...` in log output, where `...` is the content of the
