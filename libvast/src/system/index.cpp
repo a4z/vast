@@ -87,8 +87,8 @@ using namespace std::chrono;
 // query_supervisor    ------------>  index     ----------------->   partition
 //                                                                      |
 //                                                  [indexer]           |
-//                                  (spawns     <-----------------------/
-//                                   evaluators)
+//                                  (spawns     <-----------------------/     
+//                                   evaluators) 
 //
 //                                                  curried_predicate
 //                                   evaluator  -------------------------------> indexer
@@ -380,9 +380,8 @@ path index_state::index_filename(path basename) const {
 caf::expected<flatbuffers::Offset<fbs::Index>>
 pack(flatbuffers::FlatBufferBuilder& builder, const index_state& state) {
   VAST_DEBUG(state.self, "persists", state.persisted_partitions.size(),
-            "uuids of definitely persisted and", state.unpersisted.size(),
-            "uuids of maybe persisted partitions");
-
+             "uuids of definitely persisted and", state.unpersisted.size(),
+             "uuids of maybe persisted partitions");
   std::vector<flatbuffers::Offset<fbs::uuid::v0>> partition_offsets;
   for (auto uuid : state.persisted_partitions) {
     if (auto uuid_fb = pack(builder, uuid))

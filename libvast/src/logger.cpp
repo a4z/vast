@@ -12,7 +12,6 @@
  ******************************************************************************/
 
 #include "vast/logger.hpp"
-//#include "vast/logger_backward.hpp"
 #include "vast/config.hpp"
 #include "vast/defaults.hpp"
 #include "vast/system/configuration.hpp"
