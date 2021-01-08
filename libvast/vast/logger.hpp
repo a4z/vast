@@ -42,7 +42,6 @@
 // Important: keep that below the log level mapping
 #include "logger_details.hpp"
 
-
 #define VAST_LOG_SPD_TRACE(...)                                                \
   SPDLOG_LOGGER_TRACE(vast::detail::logger(), __VA_ARGS__)
 #define VAST_LOG_SPD_DEBUG(...)                                                \
@@ -81,18 +80,15 @@ create_log_context(const vast::system::configuration& cfg);
 
 // -- VAST logging macros ------------------------------------------------------
 
-
-
-
-
 #if defined(VAST_LOG_LEVEL)
 
 #  if VAST_LOG_LEVEL >= VAST_LOG_LEVEL_TRACE
 
 #    define VAST_TRACE(...)                                                    \
-      SPDLOG_LOGGER_TRACE(vast::detail::logger(),                              \
-                      vast::detail::spd_msg_from_args(1, 2, __VA_ARGS__).str(),\
-                          "ENTER",  __func__, __VA_ARGS__);                  \
+      SPDLOG_LOGGER_TRACE(                                                     \
+        vast::detail::logger(),                                                \
+        vast::detail::spd_msg_from_args(1, 2, __VA_ARGS__).str(), "ENTER",     \
+        __func__, __VA_ARGS__);                                                \
       auto CAF_UNIFYN(vast_log_trace_guard_)                                   \
         = ::caf::detail::make_scope_guard([=, func_name_ = __func__] {         \
             SPDLOG_LOGGER_TRACE(vast::detail::logger(), "ENTER {}",            \
@@ -110,63 +106,61 @@ create_log_context(const vast::system::configuration& cfg);
                         vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
                         ::vast::detail::id_or_name(c), __VA_ARGS__)
 
-#  define VAST_ERROR_ANON(...)                                                   \
+#  define VAST_ERROR_ANON(...)                                                 \
     SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
-                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
-                         __VA_ARGS__)
-
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(),    \
+                        __VA_ARGS__)
 
 #  define VAST_WARNING(c, ...)                                                 \
     SPDLOG_LOGGER_WARN(vast::detail::logger(),                                 \
-                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
-                        ::vast::detail::id_or_name(c), __VA_ARGS__)
+                       vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(),  \
+                       ::vast::detail::id_or_name(c), __VA_ARGS__)
 
 #  define VAST_WARNING_ANON(...)                                               \
-    SPDLOG_LOGGER_WARN(vast::detail::logger(),                                \
-                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
-                         __VA_ARGS__)
-
+    SPDLOG_LOGGER_WARN(vast::detail::logger(),                                 \
+                       vast::detail::spd_msg_from_args(__VA_ARGS__).str(),     \
+                       __VA_ARGS__)
 
 #  define VAST_INFO(c, ...)                                                    \
-    SPDLOG_LOGGER_INFO(vast::detail::logger(),                            \
-                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
-                        ::vast::detail::id_or_name(c), __VA_ARGS__)
+    SPDLOG_LOGGER_INFO(vast::detail::logger(),                                 \
+                       vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(),  \
+                       ::vast::detail::id_or_name(c), __VA_ARGS__)
 
 #  define VAST_INFO_ANON(...)                                                  \
-    SPDLOG_LOGGER_INFO(vast::detail::logger(),                            \
-                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
-                         __VA_ARGS__)
+    SPDLOG_LOGGER_INFO(vast::detail::logger(),                                 \
+                       vast::detail::spd_msg_from_args(__VA_ARGS__).str(),     \
+                       __VA_ARGS__)
 
 #  define VAST_VERBOSE(c, ...)                                                 \
-    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                           \
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
                         vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
                         ::vast::detail::id_or_name(c), __VA_ARGS__)
 
 #  define VAST_VERBOSE_ANON(...)                                               \
-    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                           \
-                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
-                         __VA_ARGS__)
-
+    SPDLOG_LOGGER_DEBUG(vast::detail::logger(),                                \
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(),    \
+                        __VA_ARGS__)
 
 #  define VAST_DEBUG(c, ...)                                                   \
-    SPDLOG_LOGGER_TRACE(vast::detail::logger(),                           \
+    SPDLOG_LOGGER_TRACE(vast::detail::logger(),                                \
                         vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
                         ::vast::detail::id_or_name(c), __VA_ARGS__)
 
 #  define VAST_DEBUG_ANON(...)                                                 \
-    SPDLOG_LOGGER_TRACE(vast::detail::logger(),                           \
-                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
-                         __VA_ARGS__)
+    SPDLOG_LOGGER_TRACE(vast::detail::logger(),                                \
+                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(),    \
+                        __VA_ARGS__)
 
 #  define VAST_CRITICAL(c, ...)                                                \
-    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(),                       \
-                        vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(), \
-                        ::vast::detail::id_or_name(c), __VA_ARGS__)
+    SPDLOG_LOGGER_CRITICAL(                                                    \
+      vast::detail::logger(),                                                  \
+      vast::detail::spd_msg_from_args(c, __VA_ARGS__).str(),                   \
+      ::vast::detail::id_or_name(c), __VA_ARGS__)
 
 #  define VAST_CRITICAL_ANON(...)                                              \
-    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(),                       \
-                        vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
-                         __VA_ARGS__)
+    SPDLOG_LOGGER_CRITICAL(vast::detail::logger(),                             \
+                           vast::detail::spd_msg_from_args(__VA_ARGS__).str(), \
+                           __VA_ARGS__)
 #else // defined(VAST_LOG_LEVEL)
 
 #  define VAST_LOG(...) VAST_DISCARD_ARGS(__VA_ARGS__)

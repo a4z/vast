@@ -11,26 +11,23 @@
  * contained in the LICENSE file.                                             *
  ******************************************************************************/
 
-#include "vast/path.hpp"
-#include "vast/uuid.hpp"
-#include "vast/command.hpp"
-#include "vast/type.hpp"
-#include "vast/view.hpp"
 #include "vast/bitmap.hpp"
-#include "vast/schema.hpp"
-#include "vast/expression.hpp"
-
-#include "vast/format/multi_layout_reader.hpp"
-#include "vast/detail/stable_set.hpp"
-
+#include "vast/command.hpp"
 #include "vast/config.hpp"
 #include "vast/detail/pp.hpp"
+#include "vast/detail/stable_set.hpp"
 #include "vast/detail/type_traits.hpp"
-
-#include <caf/detail/pretty_type_name.hpp>
-#include <caf/detail/scope_guard.hpp>
+#include "vast/expression.hpp"
+#include "vast/format/multi_layout_reader.hpp"
+#include "vast/path.hpp"
+#include "vast/schema.hpp"
+#include "vast/type.hpp"
+#include "vast/uuid.hpp"
+#include "vast/view.hpp"
 
 #include <caf/deep_to_string.hpp>
+#include <caf/detail/pretty_type_name.hpp>
+#include <caf/detail/scope_guard.hpp>
 #include <caf/event_based_actor.hpp>
 #include <caf/stateful_actor.hpp>
 #include <caf/string_view.hpp>
@@ -38,23 +35,20 @@
 #include <string>
 #include <type_traits>
 
-
 #define FMT_SAFE_DURATION_CAST 1
-#define FMT_USE_INTERNAL 1  // does not work ???
+#define FMT_USE_INTERNAL 1 // does not work ???
 
 #include <spdlog/spdlog.h>
 // TOOD , this is /could be problematic ....
 #if defined(FMT_USE_INTERNAL)
-#include  <spdlog/fmt/ostr.h>
-#include  <spdlog/fmt/chrono.h>
+#  include <spdlog/fmt/chrono.h>
+#  include <spdlog/fmt/ostr.h>
 #else
-#include <fmt/ostr.h>
-#include <fmt/chrono.h>
+#  include <fmt/chrono.h>
+#  include <fmt/ostr.h>
 #endif
 
-
 namespace vast::detail {
-
 
 /// Initialize the spdlog
 /// Creates the log and the sinks, sets loglevels and format
@@ -71,7 +65,6 @@ void shutdown_spdlog();
 
 /// Get a spdlog::logger handel
 std::shared_ptr<spdlog::logger> logger();
-
 
 template <class T>
 auto id_or_name(T&& x) {
@@ -97,7 +90,6 @@ auto id_or_name(T&& x) {
   }
 }
 
-
 template <size_t S>
 struct carrier {
   char name[S] = {0};
@@ -121,7 +113,6 @@ constexpr auto spd_msg_from_args(T&&...) {
   return cr;
 }
 
-
 template <class T>
 struct single_arg_wrapper {
   const char* name;
@@ -133,18 +124,16 @@ struct single_arg_wrapper {
   friend OStream& operator<<(OStream& os, const single_arg_wrapper& self) {
     std::string result = self.name;
     result += " = ";
-    result += caf::deep_to_string(self.value);;
+    result += caf::deep_to_string(self.value);
+    ;
     return os << result;
   }
-
 };
-
 
 template <class T>
 single_arg_wrapper<T> make_arg_wrapper(const char* name, const T& value) {
   return {name, value};
 }
-
 
 template <class Iterator>
 struct range_arg_wrapper {
@@ -170,124 +159,10 @@ make_arg_wrapper(const char* name, Iterator first, Iterator last) {
   return {name, first, last};
 }
 
-
-
 } // namespace vast::detail
-
-
-
-template <>
-struct fmt::formatter<caf::event_based_actor> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const caf::event_based_actor& item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", item.name());
-  }
-};
-
-
-
-template <typename... T>
-struct fmt::formatter<caf::typed_actor<T...>> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const caf::typed_actor<T...>& item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
-  }
-};
-
-
-
-template <>
-struct fmt::formatter<caf::event_based_actor*> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const caf::event_based_actor* item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", item->name());
-  }
-};
-
-
-
-template <>
-struct fmt::formatter<caf::io::broker*> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const caf::io::broker* item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
-  }
-};
-
-
-template <class State, class Base>
-struct fmt::formatter<caf::stateful_actor<State,Base>> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const caf::stateful_actor<State,Base>& item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", item.name());
-  }
-};
-
-
-
-template <class State, class Base>
-struct fmt::formatter<caf::stateful_actor<State,Base>*> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const caf::stateful_actor<State,Base>*const item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", item->name());
-  }
-};
-
-template <>
-struct fmt::formatter<caf::actor> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const caf::actor& item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
-  }
-};
-
-
 
 template <>
 struct fmt::formatter<vast::path> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -301,7 +176,6 @@ struct fmt::formatter<vast::path> {
 
 template <>
 struct fmt::formatter<vast::type> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -314,7 +188,6 @@ struct fmt::formatter<vast::type> {
 };
 template <>
 struct fmt::formatter<vast::schema> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -326,10 +199,8 @@ struct fmt::formatter<vast::schema> {
   }
 };
 
-
 template <>
 struct fmt::formatter<vast::uuid> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -341,10 +212,8 @@ struct fmt::formatter<vast::uuid> {
   }
 };
 
-
 template <>
 struct fmt::formatter<vast::record_field> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -358,7 +227,6 @@ struct fmt::formatter<vast::record_field> {
 
 template <>
 struct fmt::formatter<vast::predicate> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -372,7 +240,6 @@ struct fmt::formatter<vast::predicate> {
 
 template <>
 struct fmt::formatter<vast::bitmap> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -386,7 +253,6 @@ struct fmt::formatter<vast::bitmap> {
 
 template <>
 struct fmt::formatter<vast::offset> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -398,29 +264,22 @@ struct fmt::formatter<vast::offset> {
   }
 };
 
-
-
-
-
 template <>
 struct fmt::formatter<vast::format::multi_layout_reader> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const vast::format::multi_layout_reader& item, FormatContext& ctx) {
+  auto
+  format(const vast::format::multi_layout_reader& item, FormatContext& ctx) {
     return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
-
-
 template <>
 struct fmt::formatter<vast::curried_predicate> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -432,12 +291,8 @@ struct fmt::formatter<vast::curried_predicate> {
   }
 };
 
-
-
-
 template <>
 struct fmt::formatter<vast::invocation> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -445,48 +300,12 @@ struct fmt::formatter<vast::invocation> {
 
   template <typename FormatContext>
   auto format(const vast::invocation& item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}",item.name());
-  }
-};
-
-
-
-template <typename T>
-struct fmt::formatter<std::vector<T>> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const std::vector<T>& item, FormatContext& ctx) {
     return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
-
-
-template <>
-struct fmt::formatter<std::map<vast::offset, std::pair<size_t,vast::ids>>> {
-
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(const std::map<vast::offset, std::pair<size_t,vast::ids>>& item, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
-  }
-};
-
-
-
-
 
 template <typename T>
 struct fmt::formatter<vast::detail::stable_set<T>> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -498,11 +317,8 @@ struct fmt::formatter<vast::detail::stable_set<T>> {
   }
 };
 
-
-
 template <>
 struct fmt::formatter<vast::record_type> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -514,27 +330,8 @@ struct fmt::formatter<vast::record_type> {
   }
 };
 
-
-
-// template <>
-// struct fmt::formatter<vast::uuid> {
-
-//   template <typename ParseContext>
-//   constexpr auto parse(ParseContext& ctx) {
-//     return ctx.begin();
-//   }
-
-//   template <typename FormatContext>
-//   auto format(const vast::uuid& id, FormatContext& ctx) {
-//     (void)id;
-//     return format_to(ctx.out(), "{}", "TODO");
-//   }
-// };
-
-
 template <>
 struct fmt::formatter<vast::data_view> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
@@ -546,112 +343,221 @@ struct fmt::formatter<vast::data_view> {
   }
 };
 
-
 template <>
 struct fmt::formatter<vast::expression> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const vast::expression& v, FormatContext& ctx) {
-    (void)v;
-    return format_to(ctx.out(), "{}", to_string(v));
+  auto format(const vast::expression& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
+// ---------std types
 
+template <typename T>
+struct fmt::formatter<std::vector<T>> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
 
+  template <typename FormatContext>
+  auto format(const std::vector<T>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
+  }
+};
+
+template <>
+struct fmt::formatter<std::map<vast::offset, std::pair<size_t, vast::ids>>> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const std::map<vast::offset, std::pair<size_t, vast::ids>>& item,
+              FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
+  }
+};
+
+// ---------caf types
 
 template <class T>
 struct fmt::formatter<caf::optional<T>> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const caf::optional<T>& val, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", caf::to_string(val));
+  auto format(const caf::optional<T>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
-
 template <class T>
 struct fmt::formatter<caf::expected<T>> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const caf::expected<T>& val, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", caf::to_string(val));
+  auto format(const caf::expected<T>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
 template <>
 struct fmt::formatter<caf::error> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const caf::error& e, FormatContext& ctx) {
+  auto format(const caf::error& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
+  }
+};
 
-    return format_to(ctx.out(), "{}", to_string(e));
+template <>
+struct fmt::formatter<caf::actor> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const caf::actor& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
 template <>
 struct fmt::formatter<caf::actor_addr> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const caf::actor_addr& a, FormatContext& ctx) {
-
-    return format_to(ctx.out(), "{}", to_string(a));
+  auto format(const caf::actor_addr& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
+template <>
+struct fmt::formatter<caf::event_based_actor> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const caf::event_based_actor& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", item.name());
+  }
+};
+
+template <typename... T>
+struct fmt::formatter<caf::typed_actor<T...>> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const caf::typed_actor<T...>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
+  }
+};
+
+template <>
+struct fmt::formatter<caf::event_based_actor*> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const caf::event_based_actor* item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", item->name());
+  }
+};
+
+template <class State, class Base>
+struct fmt::formatter<caf::stateful_actor<State, Base>> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto
+  format(const caf::stateful_actor<State, Base>& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", item.name());
+  }
+};
+
+template <class State, class Base>
+struct fmt::formatter<caf::stateful_actor<State, Base>*> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const caf::stateful_actor<State, Base>* const item,
+              FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", item->name());
+  }
+};
 
 template <>
 struct fmt::formatter<caf::strong_actor_ptr> {
-
   template <typename ParseContext>
   constexpr auto parse(ParseContext& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const caf::strong_actor_ptr& a, FormatContext& ctx) {
-
-    return format_to(ctx.out(), "{}", to_string(a));
+  auto format(const caf::strong_actor_ptr& item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
   }
 };
 
+template <>
+struct fmt::formatter<caf::io::broker*> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
 
+  template <typename FormatContext>
+  auto format(const caf::io::broker* item, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", caf::deep_to_string(item));
+  }
+};
 
-// end up with too many ambigous calls
-
+// end up with too many ambigous calls, and some crashed ...?
+//  but it could be evaluated it that would be possible
+// activate, deactivate some above, build , test , see if it works ...
 
 // template <class T, class Char>
 // struct fmt::formatter<
 //   T, Char,
 //   std::enable_if_t<
 //     vast::detail::has_to_string<T>
-//      && fmt::detail::type_constant<T, Char>::value == fmt::detail::type::custom_type
-//     //  && fmt::internal::type_constant<T, Char>::value == fmt::internal::type::custom_type
+//      && fmt::detail::type_constant<T, Char>::value ==
+//      fmt::detail::type::custom_type
+//     //  && fmt::internal::type_constant<T, Char>::value ==
+//     fmt::internal::type::custom_type
 //     >> {
 
 //   template <typename ParseContext>
@@ -664,6 +570,3 @@ struct fmt::formatter<caf::strong_actor_ptr> {
 //     return format_to(ctx.out(), "{}", to_string(x));
 //   }
 // };
-
-
-

@@ -101,11 +101,6 @@ inline std::shared_ptr<spdlog::async_logger> dev_null_logger() {
 
 std::shared_ptr<spdlog::async_logger> vast_logger = dev_null_logger();
 
-// TODO could be like that ^^ but I think it's good to have the async_logger
-// here since it also documents the real type
-// std::shared_ptr<spdlog::logger> vast_logger =
-// spdlog::null_logger_mt("/dev/null");
-
 } // namespace
 
 namespace detail {
@@ -164,7 +159,7 @@ bool setup_spdlog(const system::configuration& cfg) {
 }
 
 void shutdown_spdlog() {
-  VAST_LOG_SPD_DEBUG("shut down logging") ;
+  VAST_LOG_SPD_DEBUG("shut down logging");
 
   spdlog::shutdown();
 }
@@ -233,4 +228,3 @@ int loglevel_to_int(caf::atom_value x, int default_value) {
 }
 
 } // namespace vast
-
