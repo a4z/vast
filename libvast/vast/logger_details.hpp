@@ -52,7 +52,7 @@ namespace vast::detail {
 /// Creates the log and the sinks, sets loglevels and format
 /// Must be called before using the logger, otherwise log messages will
 /// silently be discarded.
-bool setup_spdlog(const system::configuration& cfg);
+bool setup_spdlog(const vast::invocation& cmd_invocation);
 
 /// Shuts down the logging system
 /// Since vast logger runs async and has therefore a  background thread.

@@ -97,6 +97,8 @@ auto make_root_command(std::string_view path) {
         .add<std::vector<std::string>>("schema-paths", schema_desc.c_str())
         .add<std::string>("db-directory,d", "directory for persistent state")
         .add<std::string>("log-file", "log filename")
+        .add<std::string>("log-file-verbosity", "log file verbosity (default debug")
+        .add<std::string>("log-file-format", "log file format (default spdlog default")
         .add<std::string>("client-log-file", "client log file (default: "
                                              "disabled)")
         .add<std::string>("endpoint,e", "node endpoint")
@@ -113,7 +115,10 @@ auto make_root_command(std::string_view path) {
                           "finishes cleanly before inducing a hard kill")
         .add<std::string>("console", "log console color, "
                            "values: always, automatic, never. "
-                           "(default automatic)");
+                           "(default automatic)")
+        .add<std::string>("console-format", "log console format "
+                           "(default spdog format)");
+
   ob = add_index_opts(std::move(ob));
   ob = add_archive_opts(std::move(ob));
   return std::make_unique<command>(path, "", documentation::vast,

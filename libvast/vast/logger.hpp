@@ -73,8 +73,9 @@ class configuration;
 int loglevel_to_int(caf::atom_value ll, int default_value
                                         = VAST_LOG_LEVEL_QUIET);
 
-[[nodiscard]] caf::detail::scope_guard<void (*)()>
-create_log_context(const vast::system::configuration& cfg);
+
+[[nodiscard]] caf::optional<caf::detail::scope_guard<void (*)()>>
+create_log_context(const vast::invocation& cmd_invocation);
 
 } // namespace vast
 
