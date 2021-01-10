@@ -67,12 +67,12 @@ int main(int argc, char** argv) {
     return EXIT_SUCCESS;
   }
 
-  vast::detail::merge_settings(cfg.content,(*invocation).options) ;
-  auto log_context = vast::create_log_context(*invocation) ;
+  //vast::detail::merge_settings(cfg.content,(*invocation).options) ;
+  auto log_context = vast::create_log_context(*invocation, cfg.content) ;
   if (!log_context)
     return EXIT_FAILURE ;
 
-
+  return 0;
   vast::detail::merge_settings((*invocation).options, cfg.content);
   caf::actor_system sys{cfg};
 

@@ -315,7 +315,7 @@ constexpr const char* log_file = "server.log" ;
 
 constexpr const caf::atom_value console_verbosity = caf::atom("info");
 
-constexpr const caf::atom_value file_verbosity = caf::atom("debug");
+constexpr const caf::atom_value log_verbosity = caf::atom("debug");
 
 } // namespace logger
 

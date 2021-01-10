@@ -26,9 +26,11 @@ default_configuration::default_configuration() {
   set("logger.component-blacklist",
       caf::make_config_value_list(atom("caf"), atom("caf_flow"),
                                   atom("caf_stream")));
-  set("logger.console", atom("COLORED"));
-  set("logger.console-verbosity", defaults::logger::console_verbosity);
-  set("logger.file-verbosity", defaults::logger::file_verbosity);
+
+  // does not work !!
+  // set("vast.console", atom("COLORED"));
+  // set("vast.console-verbosity", defaults::logger::console_verbosity);
+  // set("vast.log-verbosity", defaults::logger::log_verbosity);
   // TODO ..
 
 }
