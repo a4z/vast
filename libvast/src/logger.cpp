@@ -12,9 +12,10 @@
  ******************************************************************************/
 
 #include "vast/logger.hpp"
+
 #include "vast/config.hpp"
-#include "vast/error.hpp"
 #include "vast/defaults.hpp"
+#include "vast/error.hpp"
 #include "vast/system/configuration.hpp"
 
 #include <caf/atom.hpp>
@@ -33,12 +34,12 @@
 // TODO remove
 #include <iostream>
 
-
 namespace vast {
 
 caf::optional<caf::detail::scope_guard<void (*)()>>
-create_log_context(const vast::invocation& cmd_invocation) {
-  if (!vast::detail::setup_spdlog(cmd_invocation))
+create_log_context(const vast::invocation& cmd_invocation,
+                   const caf::settings& cfg_file) {
+  if (!vast::detail::setup_spdlog(cmd_invocation, cfg_file))
     return {};
 
   return {caf::detail::make_scope_guard(
@@ -106,57 +107,38 @@ std::shared_ptr<spdlog::async_logger> vast_logger = dev_null_logger();
 
 } // namespace
 
-
 namespace detail {
 
-bool setup_spdlog(const vast::invocation& cmd_invocation) {
+bool setup_spdlog(const vast::invocation& cmd_invocation,
+                  const caf::settings& cfg_file) {
   // already running .....
   if (vast_logger && vast_logger->name() != "/dev/null") {
-    VAST_ERROR_ANON("Log already up") ;
+    VAST_ERROR_ANON("Log already up");
     return false;
   }
 
-  bool is_server
-    = cmd_invocation.name() == "start" || caf::get_or(cmd_invocation.options, "vast.node", false);
 
-  const auto& cfg = cmd_invocation.options ;
 
-  auto valid_verbosity = [](caf::atom_value v, const std::string& from_key) ->bool {
-    if(loglevel_to_int(v,-1) == -1) {
-      std::cerr << "Illegal loglevel in " <<  from_key << "\n";
-      return false;
-    }
-    return true ;
-  };
-  namespace lg = defaults::logger;
-  auto verbosity = caf::get_if<caf::atom_value>(&cfg, "vast.verbosity");
-  if(verbosity && !valid_verbosity(*verbosity, "vast.loglevel")) {
-    return false;
-  }
+  bool is_server = cmd_invocation.name() == "start"
+                   || caf::get_or(cmd_invocation.options, "vast.node", false);
 
-  if (auto foo = caf::get_if<std::string>(&cfg, "vast.log-file-verbosity")) {
-    std::cout << *foo << std::endl ;
-  } else {std::cout << "fuck" << std::endl;}
+  const auto& cfg_cmd = cmd_invocation.options;
 
-  auto file_verbosity = verbosity ? *verbosity : lg::file_verbosity;
-  auto console_verbosity = verbosity ? *verbosity : lg::console_verbosity;
-  file_verbosity = get_or(cfg, "vast.log-file-verbosity", file_verbosity);
-  if(!valid_verbosity(file_verbosity, "vast.log-file-verbosity")) {
-    return false;
-  }
+  auto verbosity = caf::get_if<caf::atom_value>(&cfg_cmd, "vast.verbosity");
+
+  auto file_verbosity = verbosity ? *verbosity : vast::defaults::logger::file_verbosity;
+  auto console_verbosity = verbosity ? *verbosity : vast::defaults::logger::console_verbosity;
+  file_verbosity = caf::get_or(cfg_file, "vast.file-verbosity", file_verbosity);
   console_verbosity
-    = caf::get_or(cfg, "vast.console-verbosity", console_verbosity);
-  if(!valid_verbosity(console_verbosity, "vast.console-verbosity")) {
-    return false;
-  }
+    = caf::get_or(cfg_file, "vast.console-verbosity", console_verbosity);
 
-  auto vast_file_verbosity = loglevel_to_int(file_verbosity);
-  auto vast_console_verbosity = loglevel_to_int(console_verbosity);
-  auto vast_verbosity = std::max(vast_file_verbosity, vast_console_verbosity);
+  auto cfg_file_verbosity = loglevel_to_int(file_verbosity);
+  auto cfg_console_verbosity = loglevel_to_int(console_verbosity);
+  auto cfg_verbosity = std::max(cfg_file_verbosity, cfg_console_verbosity);
 
   // There can maybesomething be done with atom ? (TODO check improve)
   spdlog::color_mode log_color = [&]() -> spdlog::color_mode {
-    auto config_value = caf::get_or(cfg, "vast.console", "automatic");
+    auto config_value = caf::get_or(cfg_file, "vast.console", "automatic");
     if (config_value == "automatic")
       return spdlog::color_mode::automatic;
     if (config_value == "always")
@@ -165,60 +147,71 @@ bool setup_spdlog(const vast::invocation& cmd_invocation) {
     return spdlog::color_mode::never;
   }();
 
+  auto log_file =caf::get_or(cfg_file, "vast.log-file", std::string{defaults::logger::log_file});
 
-  caf::optional<std::string> log_file ;
-  if (is_server) {
-    log_file = caf::get_if<std::string>(&cfg, "vast.log-file");
-    if (log_file) {
-      path log_dir = caf::get_or(cfg, "vast.db-directory", defaults::system::db_directory);
-      if (!exists(log_dir)) {
-        if (auto err = mkdir(log_dir)) {
-          // TODO make an on demand spd console log
-          std::cerr << "unable to create directory: " << log_dir.str() << ' '
-                      << vast::render(err) << '\n';
-          return false;
-        }
-      }
-      log_file = (log_dir / *log_file).str() ;
-      std::cout << "SERVER: " << *log_file << std::endl ;
-    } else { std::cout << "SERVER NOLOG: "  << std::endl ;}
-
-  } else {
-    // please note, client file does not go to db_directory, wanted ?
-    log_file = caf::get_if<std::string>(&cfg, "vast.client-log-file");
-    std::cout <<  "CLEINE: "   <<
-    (log_file ? *log_file : "")
-    << std::endl ;
+  auto cmdline_log_file = caf::get_if<std::string>(&cfg_cmd, "vast.log-file");
+  if (cmdline_log_file){
+    log_file = *cmdline_log_file ;
   }
 
-  if (vast_file_verbosity == VAST_LOG_LEVEL_QUIET){
-    log_file = caf::optional<std::string>{};
+  if (is_server) {
+    path log_dir = caf::get_or(cfg_file, "vast.db-directory",
+                                defaults::system::db_directory);
+    if (!exists(log_dir)) {
+      if (auto err = mkdir(log_dir)) {
+        // TODO make an on demand spd console log ?
+        std::cerr << "unable to create directory: " << log_dir.str() << ' '
+                  << vast::render(err) << '\n';
+        return false;
+      }
+      log_file = (log_dir / log_file).str();
+    }
+  } else {
+    // please note, client file does not go to db_directory, wanted ?
+    //first command line, then config file
+    auto client_log_file = caf::get_if<std::string>(&cfg_cmd, "vast.client-log-file");
+    if(!client_log_file)
+      client_log_file = caf::get_if<std::string>(&cfg_file, "vast.client-log-file");
+    if (client_log_file)
+      log_file = *client_log_file ;
+    else // if there is no client log file, turn off file logging
+      cfg_file_verbosity = VAST_LOG_LEVEL_QUIET;
   }
 
 
   spdlog::init_thread_pool(8192, 1);
 
-  std::vector<spdlog::sink_ptr> sinks ;
+  std::vector<spdlog::sink_ptr> sinks;
 
   auto stderr_sink
     = std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>(log_color);
-  stderr_sink->set_level(vast_loglevel_to_spd(vast_console_verbosity));
+  stderr_sink->set_level(vast_loglevel_to_spd(cfg_console_verbosity));
+  auto console_format = caf::get_if<std::string>(&cfg_file, "vast.console-format");
+  if (console_format){
+    stderr_sink->set_pattern(*console_format) ;
+  }
+
   sinks.push_back(stderr_sink);
 
-
-  if (log_file) {
+  if (cfg_file_verbosity != VAST_LOG_LEVEL_QUIET) {
     // TODO , rodate, not rodate, ...
     auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-    *log_file, 1024 * 1024 * 10, 3);
-    file_sink->set_level(vast_loglevel_to_spd(vast_file_verbosity));
+      log_file, 1024 * 1024 * 10, 3);
+    file_sink->set_level(vast_loglevel_to_spd(cfg_file_verbosity));
+    auto file_format = caf::get_if<std::string>(&cfg_file, "vast.file-format");
+    if (file_format){
+      stderr_sink->set_pattern(*file_format) ;
+    }
     sinks.push_back(file_sink);
   }
+
+
 
   vast_logger = std::make_shared<spdlog::async_logger>(
     "vast", sinks.begin(), sinks.end(), spdlog::thread_pool(),
     spdlog::async_overflow_policy::block);
 
-  vast_logger->set_level(vast_loglevel_to_spd(vast_verbosity));
+  vast_logger->set_level(vast_loglevel_to_spd(cfg_verbosity));
 
   spdlog::register_logger(vast_logger);
 

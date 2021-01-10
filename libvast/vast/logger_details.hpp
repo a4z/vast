@@ -37,7 +37,8 @@
 
 #include <spdlog/spdlog.h>
 #define FMT_SAFE_DURATION_CAST 1
-#if defined(__APPLE__) // this is of course not optimal
+//#if defined(__APPLE__) // this is of course not optimal
+#ifndef SPDLOG_FMT_EXTERNAL
 #  include <spdlog/fmt/chrono.h>
 #  include <spdlog/fmt/ostr.h>
 #else
@@ -52,13 +53,11 @@ namespace vast::detail {
 /// Creates the log and the sinks, sets loglevels and format
 /// Must be called before using the logger, otherwise log messages will
 /// silently be discarded.
-bool setup_spdlog(const vast::invocation& cmd_invocation);
+bool setup_spdlog(const vast::invocation& cmd_invocation, const caf::settings& cfg_file);
 
 /// Shuts down the logging system
 /// Since vast logger runs async and has therefore a  background thread.
 /// for a graceful exit this function should be called.
-/// TODO THERE SHOULD BE A LOG CONTEXT (GUARD) BUT WITHOUT DESIGN DISCUSSON I
-/// WILL NOT IMPLEMENT THAT
 void shutdown_spdlog();
 
 /// Get a spdlog::logger handel
