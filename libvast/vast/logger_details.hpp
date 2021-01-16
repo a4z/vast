@@ -37,7 +37,8 @@
 
 #include <spdlog/spdlog.h>
 #define FMT_SAFE_DURATION_CAST 1
-#if defined(__APPLE__) // this is of course not optimal
+//#if defined(__APPLE__) // this is of course not optimal
+#ifndef SPDLOG_FMT_EXTERNAL
 #  include <spdlog/fmt/chrono.h>
 #  include <spdlog/fmt/ostr.h>
 #else

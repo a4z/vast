@@ -124,7 +124,8 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
 
   const auto& cfg_cmd = cmd_invocation.options;
 
-  auto verbosity = caf::get_if<caf::atom_value>(&cfg_file, "vast.verbosity");
+  auto verbosity = caf::get_if<caf::atom_value>(&cfg_cmd, "vast.verbosity");
+
   auto file_verbosity = verbosity ? *verbosity : vast::defaults::logger::file_verbosity;
   auto console_verbosity = verbosity ? *verbosity : vast::defaults::logger::console_verbosity;
   file_verbosity = caf::get_or(cfg_file, "vast.file-verbosity", file_verbosity);
@@ -146,30 +147,37 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
     return spdlog::color_mode::never;
   }();
 
-  caf::optional<std::string> log_file;
+  auto log_file =caf::get_or(cfg_file, "vast.log-file", std::string{defaults::logger::log_file});
+
+  auto cmdline_log_file = caf::get_if<std::string>(&cfg_cmd, "vast.log-file");
+  if (cmdline_log_file){
+    log_file = *cmdline_log_file ;
+  }
+
   if (is_server) {
-    log_file = caf::get_if<std::string>(&cfg_file, "vast.log-file");
-    if (log_file) {
-      path log_dir = caf::get_or(cfg_file, "vast.db-directory",
-                                 defaults::system::db_directory);
-      if (!exists(log_dir)) {
-        if (auto err = mkdir(log_dir)) {
-          // TODO make an on demand spd console log
-          std::cerr << "unable to create directory: " << log_dir.str() << ' '
-                    << vast::render(err) << '\n';
-          return false;
-        }
+    path log_dir = caf::get_or(cfg_file, "vast.db-directory",
+                                defaults::system::db_directory);
+    if (!exists(log_dir)) {
+      if (auto err = mkdir(log_dir)) {
+        // TODO make an on demand spd console log ?
+        std::cerr << "unable to create directory: " << log_dir.str() << ' '
+                  << vast::render(err) << '\n';
+        return false;
       }
-      log_file = (log_dir / *log_file).str();
+      log_file = (log_dir / log_file).str();
     }
   } else {
     // please note, client file does not go to db_directory, wanted ?
-    log_file = caf::get_if<std::string>(&cfg_file, "vast.client-log-file");
+    //first command line, then config file
+    auto client_log_file = caf::get_if<std::string>(&cfg_cmd, "vast.client-log-file");
+    if(!client_log_file)
+      client_log_file = caf::get_if<std::string>(&cfg_file, "vast.client-log-file");
+    if (client_log_file)
+      log_file = *client_log_file ;
+    else // if there is no client log file, turn off file logging
+      cfg_file_verbosity = VAST_LOG_LEVEL_QUIET;
   }
 
-  if (cfg_file_verbosity == VAST_LOG_LEVEL_QUIET) {
-    log_file = caf::optional<std::string>{};
-  }
 
   spdlog::init_thread_pool(8192, 1);
 
@@ -185,10 +193,10 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
 
   sinks.push_back(stderr_sink);
 
-  if (log_file) {
+  if (cfg_file_verbosity != VAST_LOG_LEVEL_QUIET) {
     // TODO , rodate, not rodate, ...
     auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-      *log_file, 1024 * 1024 * 10, 3);
+      log_file, 1024 * 1024 * 10, 3);
     file_sink->set_level(vast_loglevel_to_spd(cfg_file_verbosity));
     auto file_format = caf::get_if<std::string>(&cfg_file, "vast.file-format");
     if (file_format){
