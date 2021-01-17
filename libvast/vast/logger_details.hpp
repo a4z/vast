@@ -38,12 +38,20 @@
 #include <spdlog/spdlog.h>
 #define FMT_SAFE_DURATION_CAST 1
 #ifndef SPDLOG_FMT_EXTERNAL
-#  include <spdlog/fmt/chrono.h>
-#  include <spdlog/fmt/ostr.h>
+#  include <spdlog/fmt/bundled/chrono.h>
+#  include <spdlog/fmt/bundled/ostream.h>
 #else
 #  include <fmt/chrono.h>
 #  include <fmt/ostream.h>
 #endif
+
+// ^^ this is wrong, actually it should be
+// #  include <spdlog/fmt/chrono.h>
+// #  include <spdlog/fmt/ostr.h>
+// and based on SPDLOG_FMT_EXTERNAL these headers
+//  will switch to the correct ones.
+// but spdlog/fmt/chrono.h is not in the old version ubuntu shipps
+
 
 namespace vast::detail {
 
