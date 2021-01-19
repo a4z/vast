@@ -24,17 +24,13 @@
 #include <spdlog/async.h>
 #include <spdlog/common.h>
 #include <spdlog/sinks/rotating_file_sink.h>
-//#include <spdlog/sinks/stdout_color_sinks.h>
-#include <cassert>
-#include <memory>
-
 #include <spdlog/sinks/ansicolor_sink.h>
 #include <spdlog/sinks/null_sink.h>
 
-// TODO remove
-#include <iostream>
+#include <cassert>
+#include <memory>
 
-namespace vast {
+  namespace vast {
 
 caf::optional<caf::detail::scope_guard<void (*)()>>
 create_log_context(const vast::invocation& cmd_invocation,
@@ -62,7 +58,7 @@ constexpr bool is_vast_loglevel(const int value) {
   return false;
 }
 
-// (base on info from chat)
+
 /// Converts a vast log level to spdlog level
 constexpr spdlog::level::level_enum vast_loglevel_to_spd(const int value) {
   assert(is_vast_loglevel(value));
@@ -93,7 +89,7 @@ constexpr spdlog::level::level_enum vast_loglevel_to_spd(const int value) {
   return level;
 }
 
-// there are log calls done before the log was created ,
+// There are log calls done before the log was created ,
 // so something to ignore is needed
 inline std::shared_ptr<spdlog::async_logger> dev_null_logger() {
   auto null_logger
@@ -122,21 +118,47 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
 
   const auto& cfg_cmd = cmd_invocation.options;
 
+  auto console_verbosity = vast::defaults::logger::console_verbosity ;
+  auto file_verbosity = vast::defaults::logger::file_verbosity ;
+
+  // The log level setup, just top down.
+  // Command line overwrites config file values
   auto verbosity = caf::get_if<caf::atom_value>(&cfg_cmd, "vast.verbosity");
+  if (verbosity) {
+    if (loglevel_to_int(*verbosity, -1) < 0) {
+      std::cerr<< "Illegal vast.verbosity " << to_string(*verbosity) << "\n" ;
+      return false;
+    }
+    file_verbosity = *verbosity ;
+    console_verbosity = *verbosity;
+  } else {
+    auto cfg_console_verbosity = caf::get_if<std::string >(&cfg_file, "vast.console-verbosity");
+    if (cfg_console_verbosity) {
+      auto atom_cv = caf::atom_from_string(*cfg_console_verbosity) ;
+      if (loglevel_to_int(atom_cv, -1) < 0) {
+        std::cerr<< "Illegal vast.console-verbosity " << *cfg_console_verbosity << "\n" ;
+        return false;
+      } else {
+        console_verbosity = atom_cv ;
+      }
+    }
+    auto cfg_file_verbosity = caf::get_if<std::string >(&cfg_file, "vast.file-verbosity");
+    if (cfg_file_verbosity) {
+      auto atom_cv = caf::atom_from_string(*cfg_file_verbosity) ;
+      if (loglevel_to_int(atom_cv, -1) < 0) {
+        std::cerr<< "Illegal vast.file-verbosity " << *cfg_file_verbosity << "\n" ;
+        return false;
+      } else {
+        file_verbosity = atom_cv ;
+      }
+    }
+  }
 
-  auto file_verbosity
-    = verbosity ? *verbosity : vast::defaults::logger::file_verbosity;
-  auto console_verbosity
-    = verbosity ? *verbosity : vast::defaults::logger::console_verbosity;
-  file_verbosity = caf::get_or(cfg_file, "vast.file-verbosity", file_verbosity);
-  console_verbosity
-    = caf::get_or(cfg_file, "vast.console-verbosity", console_verbosity);
+  auto vast_file_verbosity = loglevel_to_int(file_verbosity);
+  auto vast_console_verbosity = loglevel_to_int(console_verbosity);
+  auto vast_verbosity = std::max(vast_file_verbosity, vast_console_verbosity);
 
-  auto cfg_file_verbosity = loglevel_to_int(file_verbosity);
-  auto cfg_console_verbosity = loglevel_to_int(console_verbosity);
-  auto cfg_verbosity = std::max(cfg_file_verbosity, cfg_console_verbosity);
-
-  // There can maybesomething be done with atom ? (TODO check improve)
+  // Helper to set the color mode
   spdlog::color_mode log_color = [&]() -> spdlog::color_mode {
     auto config_value = caf::get_or(cfg_file, "vast.console", "automatic");
     if (config_value == "automatic")
@@ -160,7 +182,8 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
                                defaults::system::db_directory);
     if (!exists(log_dir)) {
       if (auto err = mkdir(log_dir)) {
-        // TODO make an on demand spd console log ?
+        // There could be done an on demand spdlogger if wanted,
+        // but this captures the original behaviour (direct write to stderr)
         std::cerr << "unable to create directory: " << log_dir.str() << ' '
                   << vast::render(err) << '\n';
         return false;
@@ -168,8 +191,8 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
       log_file = (log_dir / log_file).str();
     }
   } else {
-    // please note, client file does not go to db_directory, wanted ?
-    // first command line, then config file
+    // Please note, client file does not go to db_directory!
+    // First command line, then config file
     auto client_log_file
       = caf::get_if<std::string>(&cfg_cmd, "vast.client-log-file");
     if (!client_log_file)
@@ -177,8 +200,8 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
         = caf::get_if<std::string>(&cfg_file, "vast.client-log-file");
     if (client_log_file)
       log_file = *client_log_file;
-    else // if there is no client log file, turn off file logging
-      cfg_file_verbosity = VAST_LOG_LEVEL_QUIET;
+    else // If there is no client log file, turn off file logging
+      vast_file_verbosity = VAST_LOG_LEVEL_QUIET;
   }
 
   spdlog::init_thread_pool(8192, 1);
@@ -187,7 +210,7 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
 
   auto stderr_sink
     = std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>(log_color);
-  stderr_sink->set_level(vast_loglevel_to_spd(cfg_console_verbosity));
+  stderr_sink->set_level(vast_loglevel_to_spd(vast_console_verbosity));
   auto console_format
     = caf::get_if<std::string>(&cfg_file, "vast.console-format");
   if (console_format) {
@@ -196,11 +219,13 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
 
   sinks.push_back(stderr_sink);
 
-  if (cfg_file_verbosity != VAST_LOG_LEVEL_QUIET) {
-    // TODO , rodate, not rodate, ...
+  if (vast_file_verbosity != VAST_LOG_LEVEL_QUIET) {
+    // When the max file size is reached, close the file, rename it, and create
+    // a new file. Please adopt as needed/
+    // Arguments are,  max file size and the max number of files.
     auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
       log_file, 1024 * 1024 * 10, 3);
-    file_sink->set_level(vast_loglevel_to_spd(cfg_file_verbosity));
+    file_sink->set_level(vast_loglevel_to_spd(vast_file_verbosity));
     auto file_format = caf::get_if<std::string>(&cfg_file, "vast.file-format");
     if (file_format) {
       stderr_sink->set_pattern(*file_format);
@@ -212,7 +237,7 @@ bool setup_spdlog(const vast::invocation& cmd_invocation,
     "vast", sinks.begin(), sinks.end(), spdlog::thread_pool(),
     spdlog::async_overflow_policy::block);
 
-  vast_logger->set_level(vast_loglevel_to_spd(cfg_verbosity));
+  vast_logger->set_level(vast_loglevel_to_spd(vast_verbosity));
 
   spdlog::register_logger(vast_logger);
 
