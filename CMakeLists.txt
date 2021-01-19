@@ -516,7 +516,7 @@ find_package(yaml-cpp 0.6.2 REQUIRED HINTS ${YAML_CPP_ROOT})
 get_filename_component(yaml_cpp_dir "${YAML_CPP_INCLUDE_DIR}" ABSOLUTE)
 get_filename_component(yaml_cpp_dir "${yaml_cpp_dir}" DIRECTORY)
 
-option(SPDLOG_FMT_EXTERNAL "Use spdlog with external libfmt" ON)
+option(SPDLOG_FMT_EXTERNAL "Use spdlog with external libfmt" OFF)
 find_package(spdlog 1.5.0 REQUIRED)
 if (SPDLOG_FMT_EXTERNAL)
   find_package(fmt 5.2.1 REQUIRED)
