@@ -15,14 +15,14 @@ vast:
   # Format for printing individual log entries to the log-file.
   # For a list of valid format specifiers, see spdlog format options
   # Default: The default spdlog format
-  # log-format:
+  # file-format:
 
   # Configures the minimum severity of messages written to the log file.
   # Possible values: quiet, error, warning, info, verbose, debug, trace.
   # File logging is only available for commands that start a node (e.g.,
   # vast start). The levels above 'verbose' are usually not available in
   # release builds.
-  log-verbosity: debug
+  file-verbosity: debug
 
   # The file system path used for client log files relative to the current
   # working directory of the client. Note that this is disabled by default. If
