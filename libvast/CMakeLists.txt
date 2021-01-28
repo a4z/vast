@@ -381,7 +381,16 @@ endif()
 
 # Link against simdjson.
 option(SIMDJSON_ROOT "Install root of simdjson" "")
-find_package(simdjson REQUIRED HINTS ${SIMDJSON_ROOT})
+find_package(simdjson
+  REQUIRED
+  HINTS
+  ${SIMDJSON_ROOT}
+  # simdjson 0.8.0 exports it package configuration file under the wrong name,
+  # so we look for "simdjson-targets.cmake" as well.
+  CONFIGS
+  "simdjson-config.cmake"
+  "simdjson-targets.cmake"
+)
 target_link_libraries(libvast PUBLIC simdjson::simdjson)
 dependency_summary("simdjson" simdjson::simdjson)
 
